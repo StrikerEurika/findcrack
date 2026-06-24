@@ -5,12 +5,12 @@ class PatchExtractor:
     """
     Extracts the overlapping patches from a large image.
     """
-    def __init__(self, patch_size: Tuple[int, int], overlap_ratio: float = 0.5):
+    def __init__(self, patch_size: Tuple[int, int], overlap_ratio: float = 0.2):
         """
         Args:
             patch_size (height, width): the size of the patch to be extracted.
-            overlap_ratio: float number between o.0 and 0.99. the default value is 0.5,
-            meaning that the patches will overlap by 50% in both dimensions. 
+            overlap_ratio: float number between 0.0 and 0.99. the default value is 0.2,
+            meaning that the patches will overlap by 20% in both dimensions. 
         """
         
         if not (0.0 <= overlap_ratio < 1.0):
