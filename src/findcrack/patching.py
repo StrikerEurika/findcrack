@@ -1,6 +1,9 @@
 import numpy as np
 from typing import Tuple, Generator
 
+"""
+Version 1
+"""
 class PatchExtractor:
     """
     Extracts the overlapping patches from a large image.
@@ -114,3 +117,56 @@ class PatchBlender:
         if self.num_classes == 1:
             return result.squeeze(0)
         return result
+    
+    
+"""
+Version 2
+"""
+class SlidingWindowExtractor:
+    def __init__(self, patch_size: int, overlap_ratio: float = 0.2):
+        self.patch_size = patch_size
+        self.step_size = max(1, int(patch_size * (1 - overlap_ratio)))
+    
+    def extract(self, image: np.ndarray) -> Generator[Tuple[np.ndarray, Tuple[int, int]], None, None]:
+        """
+        yields patches and their (y, x) coordinates. automatically handles edges.
+        """
+        height, width = image.shape[:2]
+        seen_coordinates = set()
+        
+        for y in range(0, height, self.step_size):
+            for x in range(0, width, self.step_size):
+                # shift the patch if it goes out of bounds
+                if y + self.patch_size > height: y = height - self.patch_size
+                if x + self.patch_size > width: x = width - self.patch_size
+                
+                if (y, x) in seen_coordinates: continue
+                seen_coordinates.add((y, x))
+
+                yield image[y:y+self.patch_size, x:x+self.patch_size], (y, x)
+                
+class CountMapBlender:
+    """
+    Reconstructs the full image by averaging overlapping patches.
+    """
+    def __init__(self, shape: Tuple[int, int]):
+        self.prediction_map = np.zeros(shape, dtype=np.float32)
+        self.count_map = np.zeros(shape, dtype=np.int32)
+        
+    def add(self, patch: np.ndarray, coordinates: Tuple[int, int]):
+        """
+        Adds a patch to the prediction map and updates the count map.
+        """
+        y, x = coordinates
+        height, width = patch.shape
+        
+        self.prediction_map[y:y+height, x:x+width] += patch
+        self.count_map[y:y+height, x:x+width] += 1
+        
+    def merge(self) -> np.ndarray:
+        """
+        Merges the prediction map with the count map to produce the final blended image.
+        """
+        valid = self.count_map > 0
+        self.prediction_map[valid] /= self.count_map[valid]
+        return self.prediction_map
