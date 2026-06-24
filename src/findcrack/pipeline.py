@@ -7,8 +7,12 @@ from PIL import Image
 from .preprocess import apply_lab_clahe, get_inference_transform
 from .tta import tta_forward
 from .patching import CountMapBlender, PatchExtractor, PatchBlender, SlidingWindowExtractor
+from .models.zoo import get_pretrained_model
 
 class CrackInferencePipeline:
+    """
+    pipeline for running inference on large images.
+    """
     def __init__(self, model: torch.nn.Module, device: str = "cuda",
                  patch_size: int = 512, overlap_ratio: float = 0.2, 
                  confidence_threhold: float = 0.5, use_tta: bool = False):
@@ -32,6 +36,15 @@ class CrackInferencePipeline:
         model.load_state_dict(state_dict)
 
         return cls(model, **kwargs)
+    
+    @classmethod
+    def from_pretrained(cls, variant: str, device: str = "cuda", **kwargs):
+        """
+        Helper function to load pretrained model from the model zoo.
+        """
+        model = get_pretrained_model(variant, device=device)
+        return cls(model, device=device, **kwargs)
+        
     
     @torch.no_grad()
     def predict(self, image_path: str) -> dict:
