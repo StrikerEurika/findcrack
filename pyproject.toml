@@ -4,4 +4,12 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "torch>=2.12.1",
+    "torchaudio>=2.11.0",
+    "torchvision>=0.27.1",
+]
+
+[[tool.uv.index]]
+url = "https://download.pytorch.org/whl/cu130"
+default = true
