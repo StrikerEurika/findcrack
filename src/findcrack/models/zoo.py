@@ -21,9 +21,9 @@ MODEL_REGISTRY = {
             "bilinear": False
         },
         "backend": "pytorch",
-        "url": "https://github.com/StrikerEurika/findcrack/releases/download/v1.0.0/Seg_UNET_CFD_actual_v1_best.pth",
-            "sha256": None  # Users can supply checksums to verify integrity
-        },
+        "url": "https://github.com/StrikerEurika/findcrack/releases/download/v0.2.0/Seg_UNET_CFD_actual_v1_best.pth",
+        "sha256": None  # Users can supply checksums to verify integrity
+    },
     "Seg_UNET_CFD_actual_v2": {
         "metadata": {
             "loss_functions": ["BCEWithLogitsLoss", "DiceLoss"],
@@ -36,10 +36,9 @@ MODEL_REGISTRY = {
             "bilinear": False
         },
         "backend": "pytorch",
-        "url": "https://github.com/StrikerEurika/findcrack/releases/download/v1.0.0/Seg_UNET_CFD_actual_v2_best.pth",
-            "sha256": None  # Users can supply checksums to verify integrity
-        },
-    
+        "url": "https://github.com/StrikerEurika/findcrack/releases/download/v0.2.0/Seg_UNET_CFD_actual_v2_best.pth",
+        "sha256": None  # Users can supply checksums to verify integrity
+    },
 }
 
 def verify_sha256(filepath: str, expected_hash: str) -> bool:

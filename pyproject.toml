@@ -1,12 +1,21 @@
 [project]
 name = "findcrack"
 version = "0.2.0"
-description = "Add your description here"
+description = "A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends."
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+    { name = "StrikerEurika" }
+]
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
 dependencies = [
     "albumentations>=2.0.8",
-    "ipykernel>=7.3.0",
     "onnxruntime>=1.27.0",
     "opencv-python>=4.13.0.92",
     "torch>=2.6.0",
@@ -14,8 +23,14 @@ dependencies = [
     "torchvision>=0.21.0",
 ]
 
-[[tool.uv.index]]
-url = "https://download.pytorch.org/whl/cu124"
+[project.urls]
+Homepage = "https://github.com/StrikerEurika/findcrack"
+Repository = "https://github.com/StrikerEurika/findcrack"
+Releases = "https://github.com/StrikerEurika/findcrack/releases"
 
-[[tool.uv.index]]
-url = "https://pypi.org/simple"
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
