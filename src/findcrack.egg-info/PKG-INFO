@@ -3,12 +3,11 @@ Name: findcrack
 Version: 0.2.0
 Summary: A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends.
 Author: StrikerEurika
-License: MIT
+License-Expression: MIT
 Project-URL: Homepage, https://github.com/StrikerEurika/findcrack
 Project-URL: Repository, https://github.com/StrikerEurika/findcrack
 Project-URL: Releases, https://github.com/StrikerEurika/findcrack/releases
 Classifier: Programming Language :: Python :: 3
-Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
 Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
 Classifier: Topic :: Scientific/Engineering :: Image Processing

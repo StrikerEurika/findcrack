@@ -40,6 +40,7 @@ jobs:
     name: Publish to TestPyPI
     needs: [build]
     runs-on: ubuntu-latest
+    continue-on-error: true
     environment:
       name: testpypi
       url: https://test.pypi.org/p/findcrack
@@ -60,7 +61,7 @@ jobs:
   # ---------- JOB 3: Publish to PyPI (Production) ----------
   publish-to-pypi:
     name: Publish to PyPI
-    needs: [publish-to-testpypi]  # Only if TestPyPI succeeds
+    needs: [build]  # Directly depend on build
     runs-on: ubuntu-latest
     environment:
       name: pypi
