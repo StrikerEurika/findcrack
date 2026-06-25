@@ -1,5 +1,14 @@
 .venv
 __pycache__/
 .vscode/
-
 checkpoints/
+*.ipynb
+
+# model
+models/
+*.pt
+*.onnx
+*.h5
+*.pkl
+dist/
+*.whl
