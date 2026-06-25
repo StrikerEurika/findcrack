@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write  # For GitHub Releases
-  id-token: write  # Required for Trusted Publishing [citation:1][citation:3]
 
 jobs:
   # ---------- JOB 1: Build the distribution ----------
@@ -44,8 +43,6 @@ jobs:
     environment:
       name: testpypi
       url: https://test.pypi.org/p/findcrack
-    permissions:
-      id-token: write  # Mandatory for trusted publishing [citation:3]
     steps:
       - name: Download distributions
         uses: actions/download-artifact@v4
@@ -57,6 +54,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
   # ---------- JOB 3: Publish to PyPI (Production) ----------
   publish-to-pypi:
@@ -66,8 +64,6 @@ jobs:
     environment:
       name: pypi
       url: https://pypi.org/p/findcrack
-    permissions:
-      id-token: write  # Mandatory for trusted publishing [citation:3]
     steps:
       - name: Download distributions
         uses: actions/download-artifact@v4
@@ -77,6 +73,8 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
   # ---------- JOB 4: Create GitHub Release with Models ----------
   create-github-release:
