@@ -1,5 +1,9 @@
+.gitignore
+.python-version
 README.md
 pyproject.toml
+uv.lock
+.github/workflows/release.yml
 src/findcrack/__init__.py
 src/findcrack/metrics.py
 src/findcrack/patching.py
@@ -15,4 +19,5 @@ src/findcrack/models/__init__.py
 src/findcrack/models/deepcrack.py
 src/findcrack/models/onnx_wrapper.py
 src/findcrack/models/unet.py
+src/findcrack/models/version.json
 src/findcrack/models/zoo.py
