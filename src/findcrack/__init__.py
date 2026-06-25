@@ -3,7 +3,10 @@ from .models import load_model, UNet, DeepCrack, list_models, register_model
 from .metrics import calculate_metrics
 from .preprocess import apply_lab_clahe
 
-__version__ = "0.1.1"
+try:
+    from ._version import version as __version__
+except ImportError:
+    __version__ = "unknown"
 
 __all__ = [
     "CrackInferencePipeline",
