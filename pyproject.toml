@@ -1,6 +1,6 @@
 [project]
 name = "findcrack"
-version = "0.1.0"
+version = "0.1.1"
 description = "A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,5 +32,8 @@ Releases = "https://github.com/StrikerEurika/findcrack/releases"
 where = ["src"]
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools-scm]
+write_to = "src/findcrack/_version.py"
