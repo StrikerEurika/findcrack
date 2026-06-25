@@ -6,12 +6,11 @@ on:
       - 'v*'  # Triggers on tags like v1.0.0
 
 permissions:
-  contents: write  # For GitHub Releases
+  contents: write  # Required for creating GitHub Releases
 
 jobs:
-  # ---------- JOB 1: Build the distribution ----------
-  build:
-    name: Build distribution
+  release:
+    name: Build, Publish and Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,84 +19,27 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
-
-      - name: Install build tools
-        run: python -m pip install build --user
+          python-version: ">=3.11"
 
       - name: Build distributions
-        run: python -m build
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
-
-  # ---------- JOB 2: Publish to TestPyPI ----------
-  publish-to-testpypi:
-    name: Publish to TestPyPI
-    needs: [build]
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/findcrack
-    steps:
-      - name: Download distributions
-        uses: actions/download-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
+        run: |
+          python -m pip install build --user
+          python -m build
 
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        continue-on-error: true
         with:
           repository-url: https://test.pypi.org/legacy/
-          password: ${{ secrets.PYPI_API_TOKEN }}
-
-  # ---------- JOB 3: Publish to PyPI (Production) ----------
-  publish-to-pypi:
-    name: Publish to PyPI
-    needs: [build]  # Directly depend on build
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/findcrack
-    steps:
-      - name: Download distributions
-        uses: actions/download-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
-  # ---------- JOB 4: Create GitHub Release with Models ----------
-  create-github-release:
-    name: Create GitHub Release
-    needs: [publish-to-pypi]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Required for creating releases
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download distributions
-        uses: actions/download-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/*
+          files: dist/*
           generate_release_notes: true
-          draft: false
-          prerelease: false
