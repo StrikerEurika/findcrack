@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import ablumentations as A
+import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 def apply_lab_clahe(image: np.ndarray, clip_limit: float = 2.0) -> np.ndarray:

@@ -7,7 +7,8 @@ from PIL import Image
 from .preprocess import apply_lab_clahe, get_inference_transform
 from .tta import tta_forward
 from .patching import CountMapBlender, PatchExtractor, PatchBlender, SlidingWindowExtractor
-from .models.zoo import get_pretrained_model
+from .models import load_model
+
 
 class CrackInferencePipeline:
     """
@@ -42,7 +43,7 @@ class CrackInferencePipeline:
         """
         Helper function to load pretrained model from the model zoo.
         """
-        model = get_pretrained_model(variant, device=device)
+        model = load_model(variant, device=device)
         return cls(model, device=device, **kwargs)
         
     

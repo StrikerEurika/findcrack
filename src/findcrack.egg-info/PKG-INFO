@@ -1,0 +1,22 @@
+Metadata-Version: 2.1
+Name: findcrack
+Version: 0.2.0
+Summary: Add your description here
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: albumentations>=2.0.8
+Requires-Dist: onnxruntime>=1.27.0
+Requires-Dist: opencv-python>=4.13.0.92
+Requires-Dist: torch>=2.6.0
+Requires-Dist: torchaudio>=2.6.0
+Requires-Dist: torchvision>=0.21.0
+
+# find-crack
+
+uv add --index https://download.pytorch.org/whl/cu124 torch torchaudio torchvision
+
+uv run python -c "import torch; print(torch.__version__)"
+
+uv run python -c "import torch; print('PyTorch CUDA version:', torch.version.cuda)"
+
+uv run python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
