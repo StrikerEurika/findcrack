@@ -8,12 +8,12 @@ def apply_lab_clahe(image: np.ndarray, clip_limit: float = 2.0) -> np.ndarray:
     Apply clahe to the L-channel of the LAB color space to enhance
     local contrast without altering color balance.
     """
-    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    lab_image = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
     l_channel, a_channel, b_channel = cv2.split(lab_image)
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
     cl = clahe.apply(l_channel)
     limg = cv2.merge((cl, a_channel, b_channel))
-    return cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+    return cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
 
 def get_inference_transform():
     """

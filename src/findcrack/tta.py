@@ -37,4 +37,4 @@ def tta_forward(model: torch.nn.Module, image_tensor: torch.Tensor) -> torch.Ten
             vertical_flip_prediction + 
             rotated_90_prediction) / 4.0
 
-    return averaged_prediction.squeeze(0)
+    return averaged_prediction.squeeze()

@@ -21,7 +21,7 @@ MODEL_REGISTRY = {
             "bilinear": False
         },
         "backend": "pytorch",
-        "url": "https://github.com/StrikerEurika/findcrack/releases/download/v0.1.0/Seg_UNET_CFD_actual_v1_best.pth",
+        "url": "https://github.com/StrikerEurika/findcrack/releases/download/models/Seg_UNET_CFD_actual_v1_best.pth",
         "sha256": None  # Users can supply checksums to verify integrity
     },
     "Seg_UNET_CFD_actual_v2": {
@@ -36,7 +36,7 @@ MODEL_REGISTRY = {
             "bilinear": False
         },
         "backend": "pytorch",
-        "url": "https://github.com/StrikerEurika/findcrack/releases/download/v0.1.0/Seg_UNET_CFD_actual_v2_best.pth",
+        "url": "https://github.com/StrikerEurika/findcrack/releases/download/models/Seg_UNET_CFD_actual_v2_best.pth",
         "sha256": None  # Users can supply checksums to verify integrity
     },
 }
