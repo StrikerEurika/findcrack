@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from pathlib import Path
 from PIL import Image
+from typing import Optional
 
 from ..preprocess import Preprocessor
 from .tta import tta_forward
@@ -16,14 +17,14 @@ class CrackInferencePipeline:
     """
     def __init__(self, model: torch.nn.Module, device: str = "cuda",
                  patch_size: int = 512, overlap_ratio: float = 0.2, 
-                 confidence_threhold: float = 0.5, use_tta: bool = False,
-                 preprocessor: Preprocessor = None, use_clahe: bool = True,
+                 confidence_threshold: float = 0.5, use_tta: bool = False,
+                 preprocessor: Optional[Preprocessor]  = None, use_clahe: bool = True,
                  clahe_clip_limit: float = 2.0):
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device).eval()
         self.patch_size = patch_size
         self.overlap_ratio = overlap_ratio
-        self.confidence_threshold = confidence_threhold
+        self.confidence_threshold = confidence_threshold
         self.use_tta = use_tta
         
         self.extractor = PatchExtractor(self.patch_size, self.overlap_ratio)

@@ -83,7 +83,7 @@ class TestPreprocess(unittest.TestCase):
         self.assertEqual(pipeline_custom.preprocessor.mean, (0.5, 0.5, 0.5))
 
     def test_patching_integration(self):
-        from findcrack.preprocess.patching import PatchExtractor, PatchBlender
+        from findcrack import PatchExtractor, PatchBlender
         
         # Test patch extraction
         extractor = PatchExtractor(patch_size=50, overlap_ratio=0.0)
