@@ -132,6 +132,15 @@ dependencies = [
     { name = "albumentations" },
     { name = "onnxruntime" },
     { name = "opencv-python" },
+]
+
+[package.optional-dependencies]
+standard = [
+    { name = "torch" },
+    { name = "torchaudio" },
+    { name = "torchvision" },
+]
+torch = [
     { name = "torch" },
     { name = "torchaudio" },
     { name = "torchvision" },
@@ -142,10 +151,14 @@ requires-dist = [
     { name = "albumentations", specifier = ">=2.0.8" },
     { name = "onnxruntime", specifier = ">=1.27.0" },
     { name = "opencv-python", specifier = ">=4.13.0.92" },
-    { name = "torch", specifier = ">=2.6.0" },
-    { name = "torchaudio", specifier = ">=2.6.0" },
-    { name = "torchvision", specifier = ">=0.21.0" },
+    { name = "torch", marker = "extra == 'standard'", specifier = ">=2.6.0" },
+    { name = "torch", marker = "extra == 'torch'", specifier = ">=2.6.0" },
+    { name = "torchaudio", marker = "extra == 'standard'", specifier = ">=2.6.0" },
+    { name = "torchaudio", marker = "extra == 'torch'", specifier = ">=2.6.0" },
+    { name = "torchvision", marker = "extra == 'standard'", specifier = ">=0.21.0" },
+    { name = "torchvision", marker = "extra == 'torch'", specifier = ">=0.21.0" },
 ]
+provides-extras = ["standard", "torch"]
 
 [[package]]
 name = "flatbuffers"

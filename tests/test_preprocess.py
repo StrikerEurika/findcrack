@@ -1,6 +1,12 @@
 import unittest
 import numpy as np
-import torch
+
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+
 from findcrack.preprocess import apply_lab_clahe, get_inference_transform, Preprocessor
 from findcrack.inference import CrackInferencePipeline
 
@@ -19,6 +25,7 @@ class TestPreprocess(unittest.TestCase):
         self.assertEqual(enhanced_custom.shape, img.shape)
         self.assertEqual(enhanced_custom.dtype, img.dtype)
 
+    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
     def test_get_inference_transform(self):
         transform = get_inference_transform()
         img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -46,12 +53,19 @@ class TestPreprocess(unittest.TestCase):
         
         # Test transform_patch
         tensor = preprocessor.transform_patch(img)
-        self.assertIsInstance(tensor, torch.Tensor)
+        if HAS_TORCH:
+            self.assertIsInstance(tensor, torch.Tensor)
+        else:
+            self.assertIsInstance(tensor, np.ndarray)
         self.assertEqual(tensor.shape, (3, 100, 100))
         
         # Test __call__
         enhanced_call, tensor_call = preprocessor(img)
         self.assertEqual(enhanced_call.shape, img.shape)
+        if HAS_TORCH:
+            self.assertIsInstance(tensor_call, torch.Tensor)
+        else:
+            self.assertIsInstance(tensor_call, np.ndarray)
         self.assertEqual(tensor_call.shape, (3, 100, 100))
         
         # Test disabled CLAHE
@@ -59,6 +73,7 @@ class TestPreprocess(unittest.TestCase):
         enhanced_no_clahe = preprocessor_no_clahe.enhance_contrast(img)
         np.testing.assert_array_equal(enhanced_no_clahe, img)
 
+    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
     def test_pipeline_integration(self):
         # Define a mock model for testing pipeline initialization
         class DummyModel(torch.nn.Module):
@@ -81,6 +96,34 @@ class TestPreprocess(unittest.TestCase):
         self.assertIs(pipeline_custom.preprocessor, custom_preprocessor)
         self.assertFalse(pipeline_custom.preprocessor.use_clahe)
         self.assertEqual(pipeline_custom.preprocessor.mean, (0.5, 0.5, 0.5))
+
+    def test_pipeline_integration_numpy(self):
+        # A dummy callable representing the ONNX wrapper
+        def dummy_model(x):
+            # Input x is (B, C, H, W). Returns (B, 1, H, W)
+            return np.zeros((x.shape[0], 1, x.shape[2], x.shape[3]))
+            
+        # Test default initialization with numpy path
+        pipeline = CrackInferencePipeline(dummy_model, device="cpu", patch_size=50)
+        self.assertIsInstance(pipeline.preprocessor, Preprocessor)
+        self.assertTrue(pipeline.preprocessor.use_clahe)
+
+        # Test predict with numpy path
+        img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        # Create temp file
+        import tempfile
+        import os
+        from PIL import Image
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_img_path = os.path.join(tmpdir, "test.jpg")
+            Image.fromarray(img).save(tmp_img_path)
+            
+            # Predict
+            results = pipeline.predict(tmp_img_path)
+            self.assertEqual(results["original_image"].shape, img.shape)
+            self.assertEqual(results["confidence_map"].shape, (100, 100))
+            self.assertEqual(results["binary_mask"].shape, (100, 100))
 
     def test_patch_extraction(self):
         from findcrack import PatchExtractor

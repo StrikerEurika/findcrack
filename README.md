@@ -17,8 +17,10 @@
 
 ## Installation
 
-You can install `findcrack` directly from source or via PyPI (once published):
+By default, `findcrack` does not require PyTorch or its related packages, keeping the installation small and lightweight for ONNX-only inference.
 
+### Base Installation (ONNX & NumPy only)
+To run ONNX models without PyTorch:
 ```bash
 # Install via pip
 pip install findcrack
@@ -26,6 +28,17 @@ pip install findcrack
 # Or using uv
 uv add findcrack
 ```
+
+### PyTorch Support (Standard Installation)
+To enable PyTorch models and training support, install the `standard` extra (which includes PyTorch, torchvision, and torchaudio):
+```bash
+# Install via pip
+pip install "findcrack[standard]"
+
+# Or using uv
+uv add findcrack --extra standard
+```
+
 
 ---
 

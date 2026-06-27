@@ -1,9 +1,17 @@
+from __future__ import annotations
 import numpy as np
-import torch
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 from typing import Tuple, List, Optional
+import albumentations as A
 from .clahe import apply_lab_clahe
+
+try:
+    import torch
+    from albumentations.pytorch import ToTensorV2
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
+    ToTensorV2 = None
 
 class Preprocessor:
     """
@@ -28,10 +36,11 @@ class Preprocessor:
         transforms = []
         if additional_transforms:
             transforms.extend(additional_transforms)
-        transforms.extend([
-            A.Normalize(mean=self.mean, std=self.std),
-            ToTensorV2(),
-        ])
+        
+        transforms.append(A.Normalize(mean=self.mean, std=self.std))
+        if HAS_TORCH:
+            transforms.append(ToTensorV2())
+            
         self.transform = A.Compose(transforms)
 
     def enhance_contrast(self, image: np.ndarray) -> np.ndarray:
@@ -42,20 +51,25 @@ class Preprocessor:
             return apply_lab_clahe(image, clip_limit=self.clip_limit, tile_grid_size=self.tile_grid_size)
         return image
 
-    def transform_patch(self, patch: np.ndarray) -> torch.Tensor:
+    def transform_patch(self, patch: np.ndarray) -> torch.Tensor | np.ndarray:
         """
         Applies Albumentations normalization and tensorization to a patch or image.
         """
         transformed = self.transform(image=patch)
-        return transformed["image"]
+        img = transformed["image"]
+        if not HAS_TORCH:
+            # Transpose HWC to CHW to match torch format
+            img = np.transpose(img, (2, 0, 1))
+        return img
 
-    def __call__(self, image: np.ndarray) -> Tuple[np.ndarray, torch.Tensor]:
+    def __call__(self, image: np.ndarray) -> Tuple[np.ndarray, torch.Tensor | np.ndarray]:
         """
         Performs full preprocessing: contrast enhancement followed by transform.
         Returns:
             - enhanced_image: Contrast-enhanced RGB image (numpy array).
-            - tensor: The normalized PyTorch tensor.
+            - tensor/array: The normalized PyTorch tensor or NumPy array (CHW format).
         """
         enhanced = self.enhance_contrast(image)
         tensor = self.transform_patch(enhanced)
         return enhanced, tensor
+

@@ -1,7 +1,15 @@
+from __future__ import annotations
 import os
-import torch
 import hashlib
-from torch.hub import get_dir, download_url_to_file
+from typing import Any
+
+try:
+    import torch
+    from torch.hub import get_dir, download_url_to_file
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
 
 from .unet import UNet
 from .deepcrack import DeepCrack
@@ -53,7 +61,10 @@ def verify_sha256(filepath: str, expected_hash: str) -> bool:
 
 def get_cache_dir() -> str:
     """Returns the package's weight caching directory."""
-    hub_directory = get_dir()
+    if HAS_TORCH:
+        hub_directory = get_dir()
+    else:
+        hub_directory = os.path.expanduser(os.path.join("~", ".cache", "torch", "hub"))
     model_directory = os.path.join(hub_directory, 'checkpoints', 'findcrack')
     os.makedirs(model_directory, exist_ok=True)
     return model_directory
@@ -62,7 +73,13 @@ def download_weight_file(url: str, cached_file: str, expected_hash: str = None):
     """Downloads remote weight file and verifies its checksum."""
     print(f"Downloading weights from {url}... (This is a one-time download)")
     try:
-        download_url_to_file(url, cached_file, progress=True)
+        if HAS_TORCH:
+            download_url_to_file(url, cached_file, progress=True)
+        else:
+            import urllib.request
+            print(f"Downloading {url} to {cached_file}...")
+            urllib.request.urlretrieve(url, cached_file)
+            print("Download completed.")
     except Exception as e:
         raise IOError(f"Failed to download weight file from {url}. Error: {e}")
         
@@ -79,7 +96,7 @@ def load_model(
     kwargs: dict = None,
     backend: str = None,
     sha256: str = None
-) -> torch.nn.Module:
+) -> Any:
     """
     Loads a model by its registry name OR directly from a remote HTTP(S) URL.
     
@@ -135,6 +152,11 @@ def load_model(
         
     # 3. Instantiate and load weights based on backend type
     if backend == "pytorch":
+        if not HAS_TORCH:
+            raise ImportError(
+                "Loading a PyTorch backend model requires PyTorch. Please install PyTorch or "
+                "install findcrack with standard extras: pip install findcrack[standard]"
+            )
         arch_class = config["architecture"]
         model = arch_class(**config.get("kwargs", {}))
         
@@ -149,6 +171,7 @@ def load_model(
         
     else:
         raise ValueError(f"Unsupported backend: {backend}")
+
 
 
 def list_models() -> list:
