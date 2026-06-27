@@ -124,6 +124,10 @@ class TestPreprocess(unittest.TestCase):
             self.assertEqual(results["original_image"].shape, img.shape)
             self.assertEqual(results["confidence_map"].shape, (100, 100))
             self.assertEqual(results["binary_mask"].shape, (100, 100))
+            self.assertEqual(results["overlay"].shape, img.shape)
+            self.assertEqual(results["visualization"].shape, img.shape)
+            self.assertIsInstance(results["bounding_boxes"], list)
+            self.assertIsInstance(results["contours"], list)
 
     def test_patch_extraction(self):
         from findcrack import PatchExtractor
