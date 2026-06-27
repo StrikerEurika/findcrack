@@ -4,9 +4,11 @@ from .evaluation import calculate_metrics
 from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor, PatchExtractor
 from .postprocess import PatchBlender
 
+import importlib.metadata
+
 try:
-    from ._version import version as __version__
-except ImportError:
+    __version__ = importlib.metadata.version("findcrack")
+except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 __all__ = [

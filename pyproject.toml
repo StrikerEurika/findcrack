@@ -1,6 +1,6 @@
 [project]
 name = "findcrack"
-dynamic = ["version"]
+version = "0.1.4"
 description = "A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -45,8 +45,5 @@ where = ["src"]
 findcrack = ["**/*.json"]
 
 [build-system]
-requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
-
-[tool.setuptools_scm]
-write_to = "src/findcrack/_version.py"
