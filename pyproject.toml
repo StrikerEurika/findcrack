@@ -41,6 +41,9 @@ Releases = "https://github.com/StrikerEurika/findcrack/releases"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+findcrack = ["**/*.json"]
+
 [build-system]
 requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"

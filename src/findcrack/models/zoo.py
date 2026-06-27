@@ -1,6 +1,8 @@
 from __future__ import annotations
 import os
+import json
 import hashlib
+from pathlib import Path
 from typing import Any
 
 try:
@@ -11,43 +13,13 @@ except ImportError:
     HAS_TORCH = False
     torch = None
 
-from .unet import UNet
-from .deepcrack import DeepCrack
 from .onnx_wrapper import ONNXModelWrapper
 
-# Model registry detailing architectures, default arguments, remote URLs, hashes, and backend type.
-MODEL_REGISTRY = {
-    "Seg_UNET_CFD_actual_v1": {
-        "metadata": {
-            "loss_functions": ["TverskyLoss"],
-            "input_shape": [3, 512, 512],
-        },
-        "architecture": UNet,
-        "kwargs": {
-            "n_channels": 3,
-            "n_classes": 1,
-            "bilinear": False
-        },
-        "backend": "pytorch",
-        "url": "https://github.com/StrikerEurika/findcrack/releases/download/models/Seg_UNET_CFD_actual_v1_best.pth",
-        "sha256": None  # Users can supply checksums to verify integrity
-    },
-    "Seg_UNET_CFD_actual_v2": {
-        "metadata": {
-            "loss_functions": ["BCEWithLogitsLoss", "DiceLoss"],
-            "input_shape": [3, 512, 512],
-        },
-        "architecture": UNet,
-        "kwargs": {
-            "n_channels": 3,
-            "n_classes": 1,
-            "bilinear": False
-        },
-        "backend": "pytorch",
-        "url": "https://github.com/StrikerEurika/findcrack/releases/download/models/Seg_UNET_CFD_actual_v2_best.pth",
-        "sha256": None  # Users can supply checksums to verify integrity
-    },
-}
+# Load model registry detailing architectures, default arguments, remote URLs, hashes, and backend type.
+REGISTRY_PATH = Path(__file__).parent / "registry.json"
+with open(REGISTRY_PATH, "r") as f:
+    MODEL_REGISTRY = json.load(f)
+
 
 def verify_sha256(filepath: str, expected_hash: str) -> bool:
     """Verifies file integrity via SHA256 checksum."""
@@ -59,6 +31,7 @@ def verify_sha256(filepath: str, expected_hash: str) -> bool:
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest() == expected_hash
 
+
 def get_cache_dir() -> str:
     """Returns the package's weight caching directory."""
     if HAS_TORCH:
@@ -68,6 +41,7 @@ def get_cache_dir() -> str:
     model_directory = os.path.join(hub_directory, 'checkpoints', 'findcrack')
     os.makedirs(model_directory, exist_ok=True)
     return model_directory
+
 
 def download_weight_file(url: str, cached_file: str, expected_hash: str = None):
     """Downloads remote weight file and verifies its checksum."""
@@ -87,6 +61,7 @@ def download_weight_file(url: str, cached_file: str, expected_hash: str = None):
         if os.path.exists(cached_file):
             os.remove(cached_file)
         raise ValueError(f"Checksum verification failed for {cached_file}. Cache cleared.")
+
 
 def load_model(
     variant: str,
@@ -158,6 +133,16 @@ def load_model(
                 "install findcrack with standard extras: pip install findcrack[standard]"
             )
         arch_class = config["architecture"]
+        if isinstance(arch_class, str):
+            if arch_class == "UNet":
+                from .unet import UNet
+                arch_class = UNet
+            elif arch_class == "DeepCrack":
+                from .deepcrack import DeepCrack
+                arch_class = DeepCrack
+            else:
+                raise ValueError(f"Unknown PyTorch architecture class name: {arch_class}")
+        
         model = arch_class(**config.get("kwargs", {}))
         
         # Load weights
@@ -171,7 +156,6 @@ def load_model(
         
     else:
         raise ValueError(f"Unsupported backend: {backend}")
-
 
 
 def list_models() -> list:
