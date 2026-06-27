@@ -71,9 +71,15 @@ results = pipeline.predict("path/to/high_res_concrete.jpg")
 # - results["original_image"]: Original RGB image (numpy array)
 # - results["confidence_map"]: Float probability map [0.0 - 1.0]
 # - results["binary_mask"]: Binary segmentation mask [0 or 255]
+# - results["overlay"]: Original image with a colored transparent overlay on the cracks
+# - results["bounding_boxes"]: List of [xmin, ymin, xmax, ymax] coordinates for detected crack components
+# - results["contours"]: List of segmentation contours for detected cracks
+# - results["visualization"]: Original image with bounding boxes drawn and contours outlined
 
-# Save the output mask
+# Save the output mask, overlay, and visual bounding boxes
 cv2.imwrite("detected_cracks.png", results["binary_mask"])
+cv2.imwrite("detected_cracks_overlay.png", results["overlay"])
+cv2.imwrite("detected_cracks_visualization.png", results["visualization"])
 ```
 
 ---
@@ -112,8 +118,21 @@ Registers a custom variant dynamically at runtime.
 
 ### Pipeline Configuration
 
-#### `CrackInferencePipeline(model, device: str = "cuda", patch_size: int = 512, overlap_ratio: float = 0.2, confidence_threshold: float = 0.5, use_tta: bool = False, preprocessor = None, use_clahe: bool = True, clahe_clip_limit: float = 2.0)`
+#### `CrackInferencePipeline(model, device: str = "cuda", patch_size: int = 512, overlap_ratio: float = 0.2, confidence_threshold: float = 0.5, use_tta: bool = False, preprocessor = None, use_clahe: bool = True, clahe_clip_limit: float = 2.0, overlay_alpha: float = 0.4, overlay_color: tuple = (255, 0, 0), box_color: tuple = (0, 255, 0), box_thickness: int = 2, contour_color: tuple = (0, 0, 255), contour_thickness: int = 2)`
 Handles sliding window preprocessing, execution, TTA, and patching reconstruction. Can be configured with a custom `Preprocessor` or custom CLAHE parameters.
+
+- **Parameters**:
+  - `model`: Loaded PyTorch model or ONNX wrapper model.
+  - `device`: Device to execute on (`"cpu"`, `"cuda"`, etc.).
+  - `patch_size`: Size of the sliding window patch (e.g. `512` or `256`). Inputs will automatically scale to match the model's expected shape if mismatching.
+  - `overlap_ratio`: Overlap percentage between consecutive sliding windows (e.g. `0.2`).
+  - `confidence_threshold`: Probability threshold to label a pixel as a crack.
+  - `use_tta`: Toggle Test-Time Augmentation (flips and rotations).
+  - `use_clahe`: Apply LAB-CLAHE contrast enhancement globally.
+  - `overlay_alpha`: Transparency level for the output overlay mask.
+  - `overlay_color`: RGB tuple color for the overlay mask (default red: `(255, 0, 0)`).
+  - `box_color`: RGB tuple color for the bounding boxes (default green: `(0, 255, 0)`).
+  - `contour_color`: RGB tuple color for the segmentation contours (default blue: `(0, 0, 255)`).
 
 ---
 
@@ -223,9 +242,44 @@ binary_mask = (confidence_map > confidence_threshold).astype(np.uint8) * 255
 
 ---
 
+## Demos and Real-World Validation
+
+`findcrack` includes a modular demo suite to quickly validate end-to-end inference using mock data or real images.
+
+### Folder Layout
+```text
+demo/
+├── generator.py     # Utilities for generating mock concrete test images
+├── runner.py        # Handles model resolution (and fallback), pipeline runs, and output saving
+└── demo.py          # Main CLI orchestration entrypoint
+```
+
+### How to Run:
+```bash
+# 1. Run the default model variant on a generated mock image
+uv run python demo/demo.py
+
+# 2. Specify a model variant from the registry (e.g. your YOLOv8/v11 segmentation model)
+uv run python demo/demo.py --model Det_YOLOv26n-seg_crack-dataset_v1
+
+# 3. Process a real image file using a specific model
+uv run python demo/demo.py --model Det_YOLOv26n-seg_crack-dataset_v1 --image path/to/cracks.jpg
+
+# example running
+uv run python demo/demo.py --model Det_YOLOv26n-seg_crack-dataset_v1 --image "./demo/images/CFD_001.jpg"
+```
+
+All predictions are saved inside the root-level `output/` directory:
+- `output/<image_name>_mask.png`: Binary prediction mask.
+- `output/<image_name>_overlay.png`: Transparent overlay highlighting cracks on the original image.
+- `output/<image_name>_visualization.png`: Original image with bounding boxes drawn and contour boundaries outlined.
+
+---
+
 ## Directory Structure
 
 ```text
+demo/                    # Modular demo scripts and mock generators
 src/
 └── findcrack/
     ├── __init__.py          # Main API endpoints (load_model, CrackInferencePipeline, etc.)
