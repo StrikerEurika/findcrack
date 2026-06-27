@@ -1,6 +1,6 @@
 from .inference import CrackInferencePipeline
 from .models import load_model, UNet, DeepCrack, list_models, register_model
-from .metrics import calculate_metrics
+from .evaluation import calculate_metrics
 from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor
 
 try:

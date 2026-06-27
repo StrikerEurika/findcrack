@@ -145,7 +145,9 @@ python -m findcrack.preprocess path/to/input_dir path/to/output_dir
 src/
 └── findcrack/
     ├── __init__.py          # Main API endpoints (load_model, CrackInferencePipeline, etc.)
-    ├── metrics.py           # Segmentation evaluation metrics (IoU, Dice, etc.)
+    ├── evaluation/          # Evaluation tools and metrics package
+    │   ├── __init__.py      # Evaluation module exports
+    │   └── metrics.py       # Segmentation evaluation metrics (IoU, Dice, etc.)
     ├── pipeline.py          # Crack Inference Pipeline wrapper
     ├── tta.py               # Test-Time Augmentation forward pass routines
     ├── preprocess/          # Image preprocessing & patching package
