@@ -1,6 +1,6 @@
 [project]
 name = "findcrack"
-version = "0.1.2"
+version = "0.1.5"
 description = "A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends."
 readme = "README.md"
 requires-python = ">=3.11"
