@@ -83,16 +83,16 @@ class TestPreprocess(unittest.TestCase):
         self.assertEqual(pipeline_custom.preprocessor.mean, (0.5, 0.5, 0.5))
 
     def test_patching_integration(self):
-        from findcrack.preprocess.patching import SlidingWindowExtractor, CountMapBlender
+        from findcrack.preprocess.patching import PatchExtractor, PatchBlender
         
         # Test patch extraction
-        extractor = SlidingWindowExtractor(patch_size=50, overlap_ratio=0.0)
+        extractor = PatchExtractor(patch_size=50, overlap_ratio=0.0)
         img = np.zeros((100, 100, 3), dtype=np.uint8)
         patches = list(extractor.extract(img))
         self.assertEqual(len(patches), 4)  # 2x2 grid
         
         # Test blender
-        blender = CountMapBlender(shape=(100, 100))
+        blender = PatchBlender(shape=(100, 100))
         self.assertEqual(blender.prediction_map.shape, (100, 100))
         self.assertEqual(blender.count_map.shape, (100, 100))
         

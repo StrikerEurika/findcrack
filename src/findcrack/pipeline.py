@@ -6,7 +6,7 @@ from PIL import Image
 
 from .preprocess import Preprocessor
 from .tta import tta_forward
-from .preprocess.patching import CountMapBlender, SlidingWindowExtractor
+from .preprocess.patching import PatchBlender, PatchExtractor
 from .models import load_model
 
 
@@ -26,7 +26,7 @@ class CrackInferencePipeline:
         self.confidence_threshold = confidence_threhold
         self.use_tta = use_tta
         
-        self.extractor = SlidingWindowExtractor(self.patch_size, self.overlap_ratio)
+        self.extractor = PatchExtractor(self.patch_size, self.overlap_ratio)
         
         if preprocessor is not None:
             self.preprocessor = preprocessor
@@ -70,7 +70,7 @@ class CrackInferencePipeline:
         preprocessed_image = self.preprocessor.enhance_contrast(original_image)
         
         # Initialize Blender
-        blender = CountMapBlender(shape=(height, width))
+        blender = PatchBlender(shape=(height, width))
         
          # Sliding Window Inference
         for patch_rgb, coordinates in self.extractor.extract(preprocessed_image):
