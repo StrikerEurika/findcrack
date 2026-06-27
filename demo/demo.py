@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 # Ensure the local src/ directory is on the path if not installed package-wide
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 from findcrack import Preprocessor, CrackInferencePipeline, load_model, register_model
 
@@ -29,9 +29,11 @@ def create_mock_crack_image(filename="mock_concrete.jpg", size=(1000, 1000)):
     # Small hair cracks
     draw.line([(300, 250), (200, 400)], fill=(40, 40, 40), width=2)
     
-    image.save(filename)
-    print(f"Mock image saved to {os.path.abspath(filename)}")
-    return filename
+    # Save inside the demo folder to keep things tidy
+    output_path = os.path.join(os.path.dirname(__file__), filename)
+    image.save(output_path)
+    print(f"Mock image saved to {os.path.abspath(output_path)}")
+    return output_path
 
 def run_realworld_demo(image_path=None):
     print("====================================================")
@@ -123,8 +125,8 @@ def run_realworld_demo(image_path=None):
     print(f"- Confidence Map Shape:   {results['confidence_map'].shape} (min: {results['confidence_map'].min():.3f}, max: {results['confidence_map'].max():.3f})")
     print(f"- Binary Mask Shape:       {results['binary_mask'].shape} (unique values: {np.unique(results['binary_mask'])})")
     
-    # Ensure output folder exists in the same directory as demo.py
-    output_dir = os.path.join(os.path.dirname(__file__), "output")
+    # Ensure output folder exists at the root level of the project
+    output_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "output"))
     os.makedirs(output_dir, exist_ok=True)
     
     # Save the output files
