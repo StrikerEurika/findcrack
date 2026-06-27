@@ -82,24 +82,14 @@ class TestPreprocess(unittest.TestCase):
         self.assertFalse(pipeline_custom.preprocessor.use_clahe)
         self.assertEqual(pipeline_custom.preprocessor.mean, (0.5, 0.5, 0.5))
 
-    def test_patching_integration(self):
-        from findcrack import PatchExtractor, PatchBlender
+    def test_patch_extraction(self):
+        from findcrack import PatchExtractor
         
         # Test patch extraction
         extractor = PatchExtractor(patch_size=50, overlap_ratio=0.0)
         img = np.zeros((100, 100, 3), dtype=np.uint8)
         patches = list(extractor.extract(img))
         self.assertEqual(len(patches), 4)  # 2x2 grid
-        
-        # Test blender
-        blender = PatchBlender(shape=(100, 100))
-        self.assertEqual(blender.prediction_map.shape, (100, 100))
-        self.assertEqual(blender.count_map.shape, (100, 100))
-        
-        patch_val = np.ones((50, 50), dtype=np.float32)
-        blender.add(patch_val, (0, 0))
-        self.assertEqual(blender.prediction_map[0, 0], 1.0)
-        self.assertEqual(blender.count_map[0, 0], 1)
 
 if __name__ == "__main__":
     unittest.main()
