@@ -146,10 +146,15 @@ src/
 └── findcrack/
     ├── __init__.py          # Main API endpoints (load_model, CrackInferencePipeline, etc.)
     ├── metrics.py           # Segmentation evaluation metrics (IoU, Dice, etc.)
-    ├── patching.py          # Sliding window extraction and blend reconstruction
     ├── pipeline.py          # Crack Inference Pipeline wrapper
-    ├── preprocess.py        # Color-space CLAHE contrast enhancement & transforms
     ├── tta.py               # Test-Time Augmentation forward pass routines
+    ├── preprocess/          # Image preprocessing & patching package
+    │   ├── __init__.py      # Preprocess module exports
+    │   ├── __main__.py      # CLI for running preprocessing scripts
+    │   ├── clahe.py         # LAB-CLAHE contrast enhancement
+    │   ├── patching.py      # Sliding window patch extraction & blending
+    │   ├── preprocessor.py  # Unified Preprocessor class wrapper
+    │   └── transforms.py    # Image normalization and albumentations setup
     └── models/
         ├── __init__.py      # Model module exports
         ├── unet.py          # U-Net model definition

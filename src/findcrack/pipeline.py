@@ -6,7 +6,7 @@ from PIL import Image
 
 from .preprocess import Preprocessor
 from .tta import tta_forward
-from .patching import CountMapBlender, PatchExtractor, PatchBlender, SlidingWindowExtractor
+from .preprocess.patching import CountMapBlender, SlidingWindowExtractor
 from .models import load_model
 
 
