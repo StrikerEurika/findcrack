@@ -1,7 +1,7 @@
 from .pipeline import CrackInferencePipeline
 from .models import load_model, UNet, DeepCrack, list_models, register_model
 from .metrics import calculate_metrics
-from .preprocess import apply_lab_clahe
+from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor
 
 try:
     from ._version import version as __version__
@@ -15,6 +15,9 @@ __all__ = [
     "DeepCrack",
     "calculate_metrics",
     "apply_lab_clahe",
+    "get_inference_transform",
+    "Preprocessor",
     "list_models",
     "register_model",
 ]
+

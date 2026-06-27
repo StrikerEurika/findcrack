@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 from PIL import Image
 
-from .preprocess import apply_lab_clahe, get_inference_transform
+from .preprocess import Preprocessor
 from .tta import tta_forward
 from .patching import CountMapBlender, PatchExtractor, PatchBlender, SlidingWindowExtractor
 from .models import load_model
@@ -16,7 +16,9 @@ class CrackInferencePipeline:
     """
     def __init__(self, model: torch.nn.Module, device: str = "cuda",
                  patch_size: int = 512, overlap_ratio: float = 0.2, 
-                 confidence_threhold: float = 0.5, use_tta: bool = False):
+                 confidence_threhold: float = 0.5, use_tta: bool = False,
+                 preprocessor: Preprocessor = None, use_clahe: bool = True,
+                 clahe_clip_limit: float = 2.0):
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device).eval()
         self.patch_size = patch_size
@@ -25,7 +27,14 @@ class CrackInferencePipeline:
         self.use_tta = use_tta
         
         self.extractor = SlidingWindowExtractor(self.patch_size, self.overlap_ratio)
-        self.transform = get_inference_transform()
+        
+        if preprocessor is not None:
+            self.preprocessor = preprocessor
+        else:
+            self.preprocessor = Preprocessor(use_clahe=use_clahe, clip_limit=clahe_clip_limit)
+        
+        # Keep transform attribute for backwards compatibility
+        self.transform = self.preprocessor.transform
         
     @classmethod
     def from_checkpoint(cls, model_class, checkpoint_path: str, **kwargs):
@@ -58,7 +67,7 @@ class CrackInferencePipeline:
         height, width, _ = original_image.shape
         
         # Preprocess (LAB-CLAHE)
-        preprocessed_image = apply_lab_clahe(original_image)
+        preprocessed_image = self.preprocessor.enhance_contrast(original_image)
         
         # Initialize Blender
         blender = CountMapBlender(shape=(height, width))
@@ -66,8 +75,7 @@ class CrackInferencePipeline:
          # Sliding Window Inference
         for patch_rgb, coordinates in self.extractor.extract(preprocessed_image):
             # Transform to tensor
-            transformed = self.transform(image=patch_rgb)
-            patch_tensor = transformed["image"].to(self.device)
+            patch_tensor = self.preprocessor.transform_patch(patch_rgb).to(self.device)
             
             # Run Model
             if self.use_tta:

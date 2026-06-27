@@ -99,8 +99,43 @@ Registers a custom variant dynamically at runtime.
 
 ### Pipeline Configuration
 
-#### `CrackInferencePipeline(model, device: str = "cuda", patch_size: int = 512, overlap_ratio: float = 0.2, confidence_threhold: float = 0.5, use_tta: bool = False)`
-Handles sliding window preprocessing, execution, TTA, and patching reconstruction.
+#### `CrackInferencePipeline(model, device: str = "cuda", patch_size: int = 512, overlap_ratio: float = 0.2, confidence_threhold: float = 0.5, use_tta: bool = False, preprocessor = None, use_clahe: bool = True, clahe_clip_limit: float = 2.0)`
+Handles sliding window preprocessing, execution, TTA, and patching reconstruction. Can be configured with a custom `Preprocessor` or custom CLAHE parameters.
+
+---
+
+### Image Preprocessing
+
+#### `Preprocessor(use_clahe: bool = True, clip_limit: float = 2.0, tile_grid_size: Tuple[int, int] = (8, 8), mean: Tuple[float, float, float] = (0.485, 0.456, 0.406), std: Tuple[float, float, float] = (0.229, 0.224, 0.225), additional_transforms: List = None)`
+A configuration-driven preprocessing class encapsulating LAB-CLAHE contrast enhancement and Albumentations normalization/tensorization.
+
+```python
+from findcrack import Preprocessor
+
+# Custom preprocessor setup
+preprocessor = Preprocessor(
+    use_clahe=True,
+    clip_limit=3.0,
+    tile_grid_size=(4, 4)
+)
+
+# Apply CLAHE to global image (reduces patch boundary mismatch)
+enhanced_image = preprocessor.enhance_contrast(image)
+
+# Normalize and convert a patch to a PyTorch tensor
+patch_tensor = preprocessor.transform_patch(patch_rgb)
+```
+
+#### CLI Usage
+You can run `findcrack.preprocess` as a script to batch apply LAB-CLAHE contrast enhancement to an image or directory:
+
+```bash
+# Process a single image
+python -m findcrack.preprocess input.jpg output.jpg --clip-limit 2.0 --tile-grid-size 8 8
+
+# Process a directory of images
+python -m findcrack.preprocess path/to/input_dir path/to/output_dir
+```
 
 ---
 
