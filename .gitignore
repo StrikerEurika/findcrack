@@ -35,3 +35,6 @@ build/
 
 # output
 output/
+
+# Generated version file
+src/findcrack/_version.py
