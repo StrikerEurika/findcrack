@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import torch
 from findcrack.preprocess import apply_lab_clahe, get_inference_transform, Preprocessor
-from findcrack.pipeline import CrackInferencePipeline
+from findcrack.inference import CrackInferencePipeline
 
 class TestPreprocess(unittest.TestCase):
     def test_apply_lab_clahe(self):

@@ -4,10 +4,10 @@ import numpy as np
 from pathlib import Path
 from PIL import Image
 
-from .preprocess import Preprocessor
+from ..preprocess import Preprocessor
 from .tta import tta_forward
-from .preprocess.patching import PatchBlender, PatchExtractor
-from .models import load_model
+from ..preprocess.patching import PatchBlender, PatchExtractor
+from ..models import load_model
 
 
 class CrackInferencePipeline:
