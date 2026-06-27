@@ -47,7 +47,7 @@ pipeline = CrackInferencePipeline(
     device="cuda",
     patch_size=512,
     overlap_ratio=0.2,
-    confidence_threhold=0.5,
+    confidence_threshold=0.5,
     use_tta=True  # Enables multi-way Test-Time Augmentation
 )
 
@@ -99,7 +99,7 @@ Registers a custom variant dynamically at runtime.
 
 ### Pipeline Configuration
 
-#### `CrackInferencePipeline(model, device: str = "cuda", patch_size: int = 512, overlap_ratio: float = 0.2, confidence_threhold: float = 0.5, use_tta: bool = False, preprocessor = None, use_clahe: bool = True, clahe_clip_limit: float = 2.0)`
+#### `CrackInferencePipeline(model, device: str = "cuda", patch_size: int = 512, overlap_ratio: float = 0.2, confidence_threshold: float = 0.5, use_tta: bool = False, preprocessor = None, use_clahe: bool = True, clahe_clip_limit: float = 2.0)`
 Handles sliding window preprocessing, execution, TTA, and patching reconstruction. Can be configured with a custom `Preprocessor` or custom CLAHE parameters.
 
 ---
@@ -139,6 +139,77 @@ python -m findcrack.preprocess path/to/input_dir path/to/output_dir
 
 ---
 
+## Advanced End-to-End Usage
+
+If you need fine-grained control over patching parameters, custom preprocessing transformations, or model thresholding, you can run the pipeline manually. This is particularly useful when handling arbitrary non-square patch sizes or injecting custom Albumentations transforms.
+
+Here is a full example of manual patch extraction, inference, and blending on an arbitrarily-sized image:
+
+```python
+import numpy as np
+import torch
+from PIL import Image
+import albumentations as A
+
+from findcrack import load_model
+from findcrack.preprocess import Preprocessor, PatchExtractor
+from findcrack.postprocess import PatchBlender
+
+# 1. Load pre-trained model and set to evaluation mode
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = load_model("Seg_UNET_CFD_actual_v1", device=device)
+model.eval()
+
+# 2. Instantiate preprocessor with custom Albumentations transforms
+custom_preprocessor = Preprocessor(
+    use_clahe=True,
+    clip_limit=3.0,
+    tile_grid_size=(4, 4),
+    mean=(0.485, 0.456, 0.406),
+    std=(0.229, 0.224, 0.225),
+    additional_transforms=[
+        A.GaussianBlur(p=0.5)  # E.g., custom blur filter
+    ]
+)
+
+# 3. Read input image of any arbitrary dimensions
+img_path = "large_image.jpg"
+image = np.array(Image.open(img_path).convert("RGB"))
+height, width, _ = image.shape
+
+# 4. Initialize patch extractor and blender for arbitrary size
+patch_size = (512, 512)  # Can be a Tuple (height, width) or an integer
+overlap_ratio = 0.25      # overlap percentage between consecutive steps
+
+extractor = PatchExtractor(patch_size=patch_size, overlap_ratio=overlap_ratio)
+blender = PatchBlender(shape=(height, width))
+
+# Preprocess image contrast globally before patching to reduce boundary artifacts
+enhanced_image = custom_preprocessor.enhance_contrast(image)
+
+# 5. Extract patches and feed to the model
+with torch.no_grad():
+    for patch_rgb, coordinates in extractor.extract(enhanced_image):
+        # Normalize and transform patch to tensor
+        patch_tensor = custom_preprocessor.transform_patch(patch_rgb).to(device)
+        
+        # Forward pass (adding batch dimension and squeezing logits)
+        logits = model(patch_tensor.unsqueeze(0))
+        pred_prob = torch.sigmoid(logits).squeeze()
+        
+        # Add predicted patch probabilities back to the blender
+        blender.add(pred_prob.cpu().numpy(), coordinates)
+
+# 6. Merge/blend the overlapping patch maps into the full-size confidence map
+confidence_map = blender.merge()
+
+# 7. Convert confidence map to a binary mask using custom thresholding
+confidence_threshold = 0.5
+binary_mask = (confidence_map > confidence_threshold).astype(np.uint8) * 255
+```
+
+---
+
 ## Directory Structure
 
 ```text
@@ -148,13 +219,18 @@ src/
     ├── evaluation/          # Evaluation tools and metrics package
     │   ├── __init__.py      # Evaluation module exports
     │   └── metrics.py       # Segmentation evaluation metrics (IoU, Dice, etc.)
-    ├── pipeline.py          # Crack Inference Pipeline wrapper
-    ├── tta.py               # Test-Time Augmentation forward pass routines
+    ├── inference/           # Inference pipeline and test-time augmentation (TTA)
+    │   ├── __init__.py      # Inference exports
+    │   ├── pipeline.py      # Crack Inference Pipeline wrapper
+    │   └── tta.py           # Test-Time Augmentation forward pass routines
+    ├── postprocess/         # Postprocessing and patch blending package
+    │   ├── __init__.py      # Postprocess exports
+    │   └── blending.py      # PatchBlender class for merging patches
     ├── preprocess/          # Image preprocessing & patching package
     │   ├── __init__.py      # Preprocess module exports
     │   ├── __main__.py      # CLI for running preprocessing scripts
     │   ├── clahe.py         # LAB-CLAHE contrast enhancement
-    │   ├── patching.py      # Sliding window patch extraction & blending
+    │   ├── patching.py      # Sliding window patch extraction
     │   ├── preprocessor.py  # Unified Preprocessor class wrapper
     │   └── transforms.py    # Image normalization and albumentations setup
     └── models/
