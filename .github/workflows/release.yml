@@ -28,13 +28,14 @@ jobs:
       - name: Build distributions
         run: uv build
 
-      - name: Publish to TestPyPI
+      - name: Publish to TestPyPI (API Token)
         uses: pypa/gh-action-pypi-publish@release/v1
-        continue-on-error: true
+        continue-on-error: true # non-stop on error, since this is just a test
         with:
           repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.FINDCRACK_TESTPYPI_API_TOKEN }}
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (OIDC Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create GitHub Release
