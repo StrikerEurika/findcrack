@@ -39,6 +39,37 @@ pip install "findcrack[standard]"
 uv add findcrack --extra standard
 ```
 
+### Virtual Environment Setup & Activation
+
+If you are developing or running scripts within a local virtual environment:
+
+- **Creating the virtual environment**:
+  ```bash
+  # Using standard Python
+  python -m venv .venv
+  
+  # Or using uv (recommended)
+  uv venv
+  ```
+
+- **Activating the virtual environment**:
+  - **Linux/macOS (Bash/Zsh)**:
+    ```bash
+    source .venv/bin/activate
+    ```
+  - **Windows (Command Prompt)**:
+    ```cmd
+    .venv\Scripts\activate.bat
+    ```
+  - **Windows (PowerShell)**:
+    ```powershell
+    .venv\Scripts\Activate.ps1
+    ```
+  - **Windows (Git Bash / Bash)**:
+    ```bash
+    source .venv/Scripts/activate
+    ```
+
 
 ---
 
@@ -48,16 +79,19 @@ Here is how to load a pre-trained model and run crack detection on a large image
 
 ```python
 import cv2
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
 from findcrack import CrackInferencePipeline, load_model
 
 # 1. Load a pre-trained model from the official registry (or use your own URL)
 # The weights are downloaded dynamically from GitHub releases on first use.
-model = load_model("Seg_UNET_CFD_actual_v1", device="cuda")
+model = load_model("Det_YOLOv26n-seg_crack-dataset_v1", device="cpu")
 
 # 2. Setup the inference pipeline
 pipeline = CrackInferencePipeline(
     model=model,
-    device="cuda",
+    device="cpu",
     patch_size=512,
     overlap_ratio=0.2,
     confidence_threshold=0.5,
@@ -77,9 +111,43 @@ results = pipeline.predict("path/to/high_res_concrete.jpg")
 # - results["visualization"]: Original image with bounding boxes drawn and contours outlined
 
 # Save the output mask, overlay, and visual bounding boxes
-cv2.imwrite("detected_cracks.png", results["binary_mask"])
-cv2.imwrite("detected_cracks_overlay.png", results["overlay"])
-cv2.imwrite("detected_cracks_visualization.png", results["visualization"])
+# cv2.imwrite("detected_cracks.png", results["binary_mask"])
+# cv2.imwrite("detected_cracks_overlay.png", results["overlay"])
+# cv2.imwrite("detected_cracks_visualization.png", results["visualization"])
+
+# Create a figure with 3 subplots
+fig = plt.figure(figsize=(15, 5))
+gs = gridspec.GridSpec(1, 3, wspace=0.3, hspace=0.3)
+
+# 1. Binary Mask
+ax1 = fig.add_subplot(gs[0, 0])
+ax1.imshow(results["binary_mask"], cmap='gray')
+ax1.set_title('Binary Mask')
+ax1.axis('off')
+
+# 2. Overlay
+ax2 = fig.add_subplot(gs[0, 1])
+ax2.imshow(results["overlay"])
+ax2.set_title('Overlay (Cracks)')
+ax2.axis('off')
+
+# 3. Visualization with Bounding Boxes and Contours
+ax3 = fig.add_subplot(gs[0, 2])
+ax3.imshow(results["visualization"])
+ax3.set_title('Visualization (Boxes + Contours)')
+ax3.axis('off')
+
+# Use tight_layout only once at the end
+plt.tight_layout()
+
+# Optional: Save the plot as well
+plt.savefig('predicted_images_plot.png', dpi=150, bbox_inches='tight')
+
+# Display the plot
+plt.show()
+
+# Close the figure to free memory
+plt.close()
 ```
 
 ---
@@ -189,7 +257,7 @@ from findcrack.postprocess import PatchBlender
 
 # 1. Load pre-trained model and set to evaluation mode
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model = load_model("Seg_UNET_CFD_actual_v1", device=device)
+model = load_model("Det_YOLOv26n-seg_crack-dataset_v1", device=device)
 model.eval()
 
 # 2. Instantiate preprocessor with custom Albumentations transforms
