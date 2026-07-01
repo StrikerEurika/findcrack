@@ -147,6 +147,11 @@ torch = [
     { name = "torchvision" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "findcrack" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "albumentations", specifier = ">=2.0.8" },
@@ -160,6 +165,9 @@ requires-dist = [
     { name = "torchvision", marker = "extra == 'torch'", specifier = ">=0.21.0" },
 ]
 provides-extras = ["standard", "torch"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "findcrack", editable = "." }]
 
 [[package]]
 name = "flatbuffers"

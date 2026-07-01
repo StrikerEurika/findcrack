@@ -30,6 +30,11 @@ class PatchExtractor:
         Handles edges by shifting the last patch to align with the image border.
         """
         image_height, image_width = image.shape[:2]
+        if image_height < self.patch_height or image_width < self.patch_width:
+            raise ValueError(
+                f"Image dimensions ({image_height}, {image_width}) must be at least "
+                f"as large as the patch size ({self.patch_height}, {self.patch_width})."
+            )
         seen_coordinates = set()
         
         for y in range(0, image_height, self.stride_height):

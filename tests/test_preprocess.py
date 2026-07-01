@@ -25,6 +25,26 @@ class TestPreprocess(unittest.TestCase):
         self.assertEqual(enhanced_custom.shape, img.shape)
         self.assertEqual(enhanced_custom.dtype, img.dtype)
 
+        # Test Grayscale 2D
+        gray_2d = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
+        enhanced_gray_2d = apply_lab_clahe(gray_2d)
+        self.assertEqual(enhanced_gray_2d.shape, gray_2d.shape)
+        self.assertEqual(enhanced_gray_2d.dtype, gray_2d.dtype)
+        
+        # Test Grayscale 3D (1 channel)
+        gray_3d = np.random.randint(0, 256, (100, 100, 1), dtype=np.uint8)
+        enhanced_gray_3d = apply_lab_clahe(gray_3d)
+        self.assertEqual(enhanced_gray_3d.shape, gray_3d.shape)
+        self.assertEqual(enhanced_gray_3d.dtype, gray_3d.dtype)
+        
+        # Test RGBA
+        rgba = np.random.randint(0, 256, (100, 100, 4), dtype=np.uint8)
+        enhanced_rgba = apply_lab_clahe(rgba)
+        self.assertEqual(enhanced_rgba.shape, rgba.shape)
+        self.assertEqual(enhanced_rgba.dtype, rgba.dtype)
+        # Verify alpha channel is preserved
+        np.testing.assert_array_equal(rgba[:, :, 3], enhanced_rgba[:, :, 3])
+
     @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
     def test_get_inference_transform(self):
         transform = get_inference_transform()
@@ -137,6 +157,58 @@ class TestPreprocess(unittest.TestCase):
         img = np.zeros((100, 100, 3), dtype=np.uint8)
         patches = list(extractor.extract(img))
         self.assertEqual(len(patches), 4)  # 2x2 grid
+
+        # Test patch extraction with image smaller than patch size (should raise ValueError)
+        img_small = np.zeros((30, 30, 3), dtype=np.uint8)
+        with self.assertRaises(ValueError):
+            list(extractor.extract(img_small))
+
+    def test_pipeline_direct_prediction_for_small_images(self):
+        # Image is 40x40, patch size is 64. Direct prediction should kick in instead of patching.
+        def dummy_model(x):
+            # x is shape (B, C, H, W). Return (B, 1, H, W)
+            return np.zeros((x.shape[0], 1, x.shape[2], x.shape[3]))
+            
+        pipeline = CrackInferencePipeline(dummy_model, device="cpu", patch_size=64)
+        
+        img = np.random.randint(0, 256, (40, 40, 3), dtype=np.uint8)
+        
+        import tempfile
+        import os
+        from PIL import Image
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_img_path = os.path.join(tmpdir, "test_small.jpg")
+            Image.fromarray(img).save(tmp_img_path)
+            
+            results = pipeline.predict(tmp_img_path)
+            self.assertEqual(results["original_image"].shape, (40, 40, 3))
+            self.assertEqual(results["confidence_map"].shape, (40, 40))
+            self.assertEqual(results["binary_mask"].shape, (40, 40))
+            self.assertEqual(results["overlay"].shape, (40, 40, 3))
+            self.assertEqual(results["visualization"].shape, (40, 40, 3))
+
+    def test_pipeline_batch_inference(self):
+        # Test pipeline with batch_size > 1
+        def dummy_model(x):
+            return np.zeros((x.shape[0], 1, x.shape[2], x.shape[3]))
+            
+        # 100x100 image, 50x50 patch -> 4 patches. batch_size = 2.
+        pipeline = CrackInferencePipeline(dummy_model, device="cpu", patch_size=50, batch_size=2)
+        
+        img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        
+        import tempfile
+        import os
+        from PIL import Image
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_img_path = os.path.join(tmpdir, "test_batch.jpg")
+            Image.fromarray(img).save(tmp_img_path)
+            
+            results = pipeline.predict(tmp_img_path)
+            self.assertEqual(results["original_image"].shape, (100, 100, 3))
+            self.assertEqual(results["confidence_map"].shape, (100, 100))
 
 if __name__ == "__main__":
     unittest.main()

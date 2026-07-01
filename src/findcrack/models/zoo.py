@@ -132,6 +132,15 @@ def load_model(
                 "Loading a PyTorch backend model requires PyTorch. Please install PyTorch or "
                 "install findcrack with standard extras: pip install findcrack[standard]"
             )
+        # Safe device selection
+        target_device = device
+        if "cuda" in str(device) and not torch.cuda.is_available():
+            print("Warning: CUDA is not available. Falling back to CPU.")
+            target_device = "cpu"
+        elif "mps" in str(device) and not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
+            print("Warning: MPS is not available. Falling back to CPU.")
+            target_device = "cpu"
+            
         arch_class = config["architecture"]
         if isinstance(arch_class, str):
             if arch_class == "UNet":
@@ -146,9 +155,9 @@ def load_model(
         model = arch_class(**config.get("kwargs", {}))
         
         # Load weights
-        state_dict = torch.load(cached_file, map_location=device)
+        state_dict = torch.load(cached_file, map_location=target_device)
         model.load_state_dict(state_dict)
-        return model.to(device).eval()
+        return model.to(target_device).eval()
         
     elif backend == "onnx":
         model = ONNXModelWrapper(cached_file, device=device)
