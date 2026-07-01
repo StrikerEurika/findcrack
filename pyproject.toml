@@ -1,6 +1,6 @@
 [project]
 name = "findcrack"
-version = "0.1.5"
+version = "0.1.6"
 description = "A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -31,7 +31,6 @@ torch = [
     "torchaudio>=2.6.0",
     "torchvision>=0.21.0",
 ]
-
 
 [project.urls]
 Homepage = "https://github.com/StrikerEurika/findcrack"
