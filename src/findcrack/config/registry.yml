@@ -1,0 +1,83 @@
+registry_version: "1.0.2"
+active_models: ["Seg_Unet-v1_CFD", "Seg_YOLO26n-seg-v1_crack-seg"]
+
+models:
+  Seg_Unet-v1_CFD:
+    name: "Unet-v1 (CFD)"
+    version: "1.0.0"
+    description: "Unet for crack segmentation trained on CFD dataset"
+    producer: "Segmentation Models PyTorch (smp)"
+
+    task:
+      specialist: segmentation
+      category: semantic_segmentation
+
+    architecture:
+      library: "smp"
+      arch: "Unet"
+      encoder: "resnet34"
+      encoder_weights: null
+      in_channels: 3
+      classes: 1
+
+    input:
+      training_shape: [3, 480, 320]
+      inference_patch_sizes: [256, 512, 1024]
+      dtype: "float32"
+      preprocessing:
+        normalize:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+
+    training:
+      datasets: ["CFD"]
+      dataset_transparency: "public"
+      dataset_url: null
+      loss_functions: ["DiceLoss"]
+
+    artifacts:
+      framework: "pytorch"
+      format: ["pytorch"]
+      model_url: null
+      local_path: "./checkpoints/pytorch/smp/Seg_Unet-v1_CFD/Seg_Unet-v1_CFD.pt"
+      checksum:
+        sha256: null
+
+  Seg_YOLO26n-seg-v1_crack-seg:
+    name: "YOLO26n-seg-v1 (crack-seg)"
+    version: "1.0.0"
+    description: "YOLO26n-seg for crack segmentation trained on crack-seg dataset"
+    producer: "Ultralytics YOLOv8"
+
+    task:
+      specialist: segmentation
+      category: instance_segmentation
+
+    architecture:
+      library: "ultralytics"
+      arch: "YOLO26n-seg"
+      encoder: null
+      encoder_weights: null
+      in_channels: 3
+      classes: 1
+
+    input:
+      training_shape: [3, 416, 416]
+      inference_patch_sizes: [256, 512, 1024]
+      dtype: "float32"
+      preprocessing:
+        normalize:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+
+    training:
+      datasets: ["crack-seg"]
+      dataset_transparency: "public"
+      dataset_url: null
+      loss_functions: ["YOLOLoss"]
+
+    artifacts:
+      framework: "ultralytics"
+      format: ["onnx"]
+      model_url: "https://github.com/StrikerEurika/findcrack/releases/download/models/Det_YOLOv26n-seg_crack-dataset_v1_best.onnx"
+      local_path: "./checkpoints/ultralytics/yolo/Seg_YOLO26n-seg-v1_crack-seg/Seg_YOLO26n-seg-v1_crack-seg.onnx"

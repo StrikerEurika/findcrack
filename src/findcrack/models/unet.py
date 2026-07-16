@@ -1,3 +1,9 @@
+"""
+WARNING: This file exists only as a fallback for legacy/classic Unet support. 
+All new Unet models MUST use the SMP loader (Segmentation Models PyTorch) and must specify 'producer: Segmentation Models PyTorch (smp)' in registry.yml.
+Registry or loader falling back here signals a legacy or misconfigured model. DO NOT use or call this class in new code, projects, or registry entries.
+"""
+
 try:
     import torch
     import torch.nn as nn

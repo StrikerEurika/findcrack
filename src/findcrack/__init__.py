@@ -1,5 +1,5 @@
 from .inference import CrackInferencePipeline
-from .models import load_model, UNet, DeepCrack, list_models, register_model
+from .models import load_model, UNet, list_models, register_model
 from .evaluation import calculate_metrics
 from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor, PatchExtractor
 from .postprocess import PatchBlender
@@ -15,7 +15,7 @@ __all__ = [
     "CrackInferencePipeline",
     "load_model",
     "UNet",
-    "DeepCrack",
+
     "calculate_metrics",
     "apply_lab_clahe",
     "get_inference_transform",

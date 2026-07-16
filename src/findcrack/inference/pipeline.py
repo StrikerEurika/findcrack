@@ -86,11 +86,11 @@ class CrackInferencePipeline:
         return cls(model, **kwargs)
     
     @classmethod
-    def from_pretrained(cls, variant: str, device: str = "cuda", **kwargs):
+    def from_pretrained(cls, variant: str, device: str = "cuda", local_checkpoint: bool = False, **kwargs):
         """
-        Helper function to load pretrained model from the model zoo.
+        Helper function to load pretrained model from the model registry.
         """
-        model = load_model(variant, device=device)
+        model = load_model(variant, device=device, local_checkpoint=local_checkpoint)
         return cls(model, device=device, **kwargs)
         
     

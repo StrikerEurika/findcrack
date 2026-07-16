@@ -18,6 +18,7 @@ dependencies = [
     "albumentations>=2.0.8",
     "onnxruntime>=1.27.0",
     "opencv-python>=4.13.0.92",
+    "segmentation-models-pytorch>=0.5.0",
 ]
 
 [project.optional-dependencies]
@@ -41,7 +42,7 @@ Releases = "https://github.com/StrikerEurika/findcrack/releases"
 where = ["src"]
 
 [tool.setuptools.package-data]
-findcrack = ["**/*.json"]
+findcrack = ["**/*.yml", "**/*.yaml"]
 
 [tool.uv.sources]
 findcrack = { workspace = true, editable = true }

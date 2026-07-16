@@ -373,7 +373,7 @@ src/
         ├── unet.py          # U-Net model definition
         ├── deepcrack.py     # DeepCrack model definition
         ├── onnx_wrapper.py  # Wrapper for running ONNX models as nn.Modules
-        └── zoo.py           # Remote weight registry and cached loaders
+        └── registry.py      # Remote weight registry and cached loaders
 ```
 
 ---
