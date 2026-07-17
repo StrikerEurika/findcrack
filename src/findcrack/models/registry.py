@@ -49,8 +49,18 @@ def load_registry() -> dict:
             # Standardize backend, URL, local path and checksum from artifacts
             artifacts = m.get("artifacts", {})
             backend = artifacts.get("framework", m.get("backend", "pytorch"))
+            if backend == "ultralytics":
+                backend = "onnx"
             url = artifacts.get("model_url", m.get("url"))
             local_path = artifacts.get("local_path", m.get("local_path"))
+            if local_path and not Path(local_path).is_absolute():
+                path_obj = Path(local_path)
+                parts = path_obj.parts
+                if parts and parts[0] == ".":
+                    parts = parts[1:]
+                if parts and parts[0] == "checkpoints":
+                    parts = parts[1:]
+                local_path = str(Path(*parts)) if parts else ""
 
             checksum = artifacts.get("checksum", {})
             sha256 = checksum.get("sha256") if isinstance(checksum, dict) else m.get("sha256")
@@ -83,7 +93,7 @@ def get_checkpoints_dir() -> Path:
             return p
 
     # 1. Check relative to root of the repo (climbing 4 levels from registry.py)
-    try_root = Path(__file__).resolve().parents[4] / "checkpoints"
+    try_root = Path(__file__).resolve().parents[3] / "checkpoints"
     if try_root.is_dir():
         return try_root
         
