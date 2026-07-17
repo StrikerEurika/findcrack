@@ -27,7 +27,7 @@ except ImportError:
 
 # Import findcrack components
 try:
-    from findcrack import Preprocessor, CrackInferencePipeline, load_model, list_models, UNet, DeepCrack
+    from findcrack import Preprocessor, CrackInferencePipeline, load_model, list_models, UNet
     from findcrack.models.onnx_wrapper import ONNXModelWrapper
     from findcrack.inference.tta import tta_forward_np
 except Exception as e:
@@ -40,17 +40,10 @@ if HAS_TORCH:
     print("FAILED_HAS_TORCH_IS_TRUE")
     sys.exit(1)
 
-# Test UNet / DeepCrack raise ImportError on instantiation
+# Test UNet raises ImportError on instantiation
 try:
     UNet()
     print("FAILED_UNET_NO_ERROR")
-    sys.exit(1)
-except ImportError:
-    pass
-
-try:
-    DeepCrack()
-    print("FAILED_DEEPCRACK_NO_ERROR")
     sys.exit(1)
 except ImportError:
     pass
