@@ -1,6 +1,6 @@
 [project]
 name = "findcrack"
-version = "0.1.6"
+version = "0.1.7"
 description = "A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,25 +16,25 @@ classifiers = [
 ]
 dependencies = [
     "albumentations>=1.3.0,<2.0.0",
-    "ipykernel>=7.3.0",
-    "onnxruntime>=1.27.0",
-    "opencv-python>=4.13.0.92",
-    "segmentation-models-pytorch>=0.5.0",
-    "torch>=2.7.1",
-    "torchaudio>=2.7.1",
-    "torchvision>=0.22.1",
+    "onnxruntime>=1.16.0",
+    "opencv-python>=4.8.0",
+    "pillow>=9.5.0",
+    "pyyaml>=6.0",
+    "numpy>=1.24.0",
 ]
 
 [project.optional-dependencies]
 standard = [
-    "torch>=2.6.0",
-    "torchaudio>=2.6.0",
-    "torchvision>=0.21.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "torchvision>=0.15.0",
+    "segmentation-models-pytorch>=0.3.0",
 ]
 torch = [
-    "torch>=2.6.0",
-    "torchaudio>=2.6.0",
-    "torchvision>=0.21.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "torchvision>=0.15.0",
+    "segmentation-models-pytorch>=0.3.0",
 ]
 
 [project.urls]
@@ -59,7 +59,8 @@ explicit = true
 
 [dependency-groups]
 dev = [
-    "findcrack",
+    "findcrack[standard]",
+    "pytest>=7.0.0",
 ]
 
 [tool.uv.sources]
