@@ -94,9 +94,9 @@ class CrackInferencePipeline:
         return cls(model, device=device, **kwargs)
         
     
-    def predict(self, image_path: str) -> dict:
+    def predict(self, image_input: str | Path | np.ndarray | Image.Image) -> dict:
         """
-        Runs full inference pipeline on a large image.
+        Runs full inference pipeline on an image (path, numpy array, or PIL Image).
         Returns a dictionary with:
         - original_image: Original RGB image (numpy array).
         - confidence_map: Float probability map [0.0 - 1.0].
@@ -106,8 +106,21 @@ class CrackInferencePipeline:
         - contours: List of segmentation contours for detected cracks.
         - visualization: Original image with bounding boxes drawn and contours outlined.
         """
-        # Load Image
-        original_image = np.array(Image.open(image_path).convert('RGB'))
+        # Resolve image input into RGB np.ndarray
+        if isinstance(image_input, (str, Path)):
+            original_image = np.array(Image.open(image_input).convert('RGB'))
+        elif isinstance(image_input, Image.Image):
+            original_image = np.array(image_input.convert('RGB'))
+        elif isinstance(image_input, np.ndarray):
+            if image_input.ndim == 2:
+                original_image = cv2.cvtColor(image_input, cv2.COLOR_GRAY2RGB)
+            elif image_input.shape[2] == 4:
+                original_image = cv2.cvtColor(image_input, cv2.COLOR_RGBA2RGB)
+            else:
+                original_image = image_input
+        else:
+            raise ValueError(f"Unsupported image input type: {type(image_input)}")
+
         height, width, _ = original_image.shape
 
         # Determine patch dimensions
