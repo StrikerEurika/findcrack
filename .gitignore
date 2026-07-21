@@ -41,4 +41,4 @@ predicted_images_plot.png
 # Generated version file
 src/findcrack/_version.py
 
-!notebooks/*
+!demo/notebooks/*
