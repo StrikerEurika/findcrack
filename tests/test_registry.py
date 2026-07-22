@@ -12,6 +12,29 @@ except ImportError:
 
 
 class TestModelZoo(unittest.TestCase):
+    def setUp(self):
+        from findcrack.models.registry import MODEL_REGISTRY
+        if "Seg_Unet-v1_CFD" not in MODEL_REGISTRY:
+            MODEL_REGISTRY["Seg_Unet-v1_CFD"] = {
+                "architecture": "Unet",
+                "kwargs": {
+                    "encoder_name": "resnet34",
+                    "encoder_weights": None,
+                    "in_channels": 3,
+                    "classes": 1
+                },
+                "backend": "pytorch",
+                "url": None,
+                "local_path": "pytorch/smp/Seg_Unet-v1_CFD/Seg_Unet-v1_CFD.pt",
+                "sha256": None,
+                "raw_config": {
+                    "producer": "Segmentation Models PyTorch (smp)",
+                    "architecture": {
+                        "arch": "Unet"
+                    }
+                }
+            }
+
     def test_list_models(self):
         models = list_models()
         # This just checks model listing

@@ -52,6 +52,8 @@ def load_registry() -> dict:
             if backend == "ultralytics":
                 backend = "onnx"
             url = artifacts.get("model_url", m.get("url"))
+            if not url:
+                continue
             local_path = artifacts.get("local_path", m.get("local_path"))
             if local_path and not Path(local_path).is_absolute():
                 path_obj = Path(local_path)
@@ -351,10 +353,11 @@ def load_model(
             
         arch_class = config["architecture"]
         # Generalized SMP factory dispatch
-        producer = config["raw_config"].get("producer", "").lower()
+        raw_cfg = config.get("raw_config", {})
+        producer = raw_cfg.get("producer", "").lower() if raw_cfg else ""
         if producer.startswith("segmentation models pytorch") or producer == "smp":
             from .smp import create_smp_model
-            arch_string = config["raw_config"].get("architecture", {}).get("arch", arch_class)
+            arch_string = raw_cfg.get("architecture", {}).get("arch", arch_class)
             model = create_smp_model(arch_string, **config.get("kwargs", {}))
         elif isinstance(arch_class, str):
             if arch_class == "UNet":
@@ -384,6 +387,46 @@ def load_model(
     else:
         raise ValueError(f"Unsupported backend: {backend}")
 
+
+def get_model_status_map() -> dict:
+    """
+    Returns a mapping: variant -> {display_name, status, backend, url, local_path, sha256}.
+    Status values:
+      - 'available' if installed and usable
+      - 'downloadable' if not installed but URL is provided
+      - 'unavailable' otherwise
+    """
+    result = {}
+    for key, entry in MODEL_REGISTRY.items():
+        backend = entry.get("backend", "pytorch")
+        local_path = entry.get("local_path")
+        url = entry.get("url")
+        sha256 = entry.get("sha256")
+        # Friendly name: fallback to key
+        display_name = entry.get("friendly_name") or key
+        installed = False
+        resolved_path = None
+        try:
+            resolved_path = resolve_local_checkpoint(key, backend=backend)
+        except Exception:
+            resolved_path = None
+        if resolved_path and resolved_path.is_file():
+            installed = True
+        if installed:
+            status = "available"
+        elif url:
+            status = "downloadable"
+        else:
+            status = "unavailable"
+        result[key] = {
+            "display_name": display_name,
+            "status": status,
+            "backend": backend,
+            "url": url,
+            "local_path": local_path,
+            "sha256": sha256,
+        }
+    return result
 
 def list_models() -> list:
     """

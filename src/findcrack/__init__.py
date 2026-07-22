@@ -1,5 +1,5 @@
 from .inference import CrackInferencePipeline
-from .models import load_model, UNet, list_models, register_model
+from .models import load_model, UNet, list_models, register_model, get_model_status_map
 from .evaluation import calculate_metrics
 from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor, PatchExtractor
 from .postprocess import PatchBlender
@@ -24,5 +24,6 @@ __all__ = [
     "PatchBlender",
     "list_models",
     "register_model",
+    "get_model_status_map",
 ]
 

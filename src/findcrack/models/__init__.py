@@ -1,6 +1,6 @@
 from .unet import UNet # WARNING: fallback import only. Do not use UNet directly. Use SMP for all new Unet.
 from .onnx_wrapper import ONNXModelWrapper
-from .registry import load_model, MODEL_REGISTRY, list_models, register_model
+from .registry import load_model, MODEL_REGISTRY, list_models, register_model, get_model_status_map
 
 __all__ = [
     "UNet",
@@ -9,6 +9,7 @@ __all__ = [
     "MODEL_REGISTRY",
     "list_models",
     "register_model",
+    "get_model_status_map",
 ]
 
 
