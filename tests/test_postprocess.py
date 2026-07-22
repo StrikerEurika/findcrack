@@ -50,5 +50,27 @@ class TestPostprocess(unittest.TestCase):
         with self.assertRaises(ValueError):
             PatchBlender(shape=(100, 100), blend_mode="invalid")
 
+    def test_sigmoid_np_overflow_prevention(self):
+        from findcrack.utils import sigmoid_np
+        import warnings
+        
+        # Test standard values
+        np.testing.assert_almost_equal(sigmoid_np(0.0), 0.5)
+        np.testing.assert_almost_equal(sigmoid_np(np.array([0.0])), np.array([0.5]))
+        
+        # Test extremely large negative/positive values (which normally overflow np.exp)
+        large_inputs = np.array([-1000.0, 1000.0, -1e5, 1e5])
+        
+        # Run and check that no RuntimeWarning (overflow) is raised
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            res = sigmoid_np(large_inputs)
+            
+        # Verify output bounds
+        self.assertAlmostEqual(res[0], 0.0)
+        self.assertAlmostEqual(res[1], 1.0)
+        self.assertAlmostEqual(res[2], 0.0)
+        self.assertAlmostEqual(res[3], 1.0)
+
 if __name__ == "__main__":
     unittest.main()

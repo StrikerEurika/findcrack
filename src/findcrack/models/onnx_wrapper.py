@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+from findcrack.utils import sigmoid_np
 
 try:
     import torch
@@ -80,9 +81,6 @@ if HAS_TORCH:
             N = valid_boxes.shape[0]
             masks_in = np.matmul(valid_coeffs, protos.reshape(32, -1)).reshape(N, 128, 128)
             
-            def sigmoid_np(val):
-                return 1 / (1 + np.exp(-val))
-                
             for i in range(N):
                 box = valid_boxes[i]
                 mask = sigmoid_np(masks_in[i])
@@ -206,9 +204,6 @@ else:
             N = valid_boxes.shape[0]
             masks_in = np.matmul(valid_coeffs, protos.reshape(32, -1)).reshape(N, 128, 128)
             
-            def sigmoid_np(val):
-                return 1 / (1 + np.exp(-val))
-                
             for i in range(N):
                 box = valid_boxes[i]
                 mask = sigmoid_np(masks_in[i])

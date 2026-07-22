@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+from findcrack.utils import sigmoid_np
 
 try:
     import torch
@@ -51,9 +52,6 @@ def tta_forward_np(model, image_np: np.ndarray) -> np.ndarray:
     Apply 4-way test-time augmentation using NumPy only.
     Expects image_np to be shape (C, H, W). Returns (H, W).
     """
-    def sigmoid_np(x):
-        return 1 / (1 + np.exp(-x))
-
     # Add batch dimension to simulate (1, C, H, W)
     x = np.expand_dims(image_np, axis=0)
     

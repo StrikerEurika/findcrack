@@ -1,6 +1,7 @@
 from __future__ import annotations
 import cv2
 import numpy as np
+import time
 from pathlib import Path
 from PIL import Image
 from typing import Optional
@@ -16,6 +17,7 @@ from ..preprocess import Preprocessor, PatchExtractor
 from ..postprocess import PatchBlender
 from .tta import tta_forward, tta_forward_np
 from ..models import load_model
+from ..utils import sigmoid_np
 
 
 class CrackInferencePipeline:
@@ -168,7 +170,7 @@ class CrackInferencePipeline:
                     else:
                         input_feed = np.expand_dims(patch_data_np, axis=0)
                         raw_out = self.model(input_feed)
-                        confidence_map = np.squeeze(1 / (1 + np.exp(-raw_out)))
+                        confidence_map = np.squeeze(sigmoid_np(raw_out))
             
             # Rescale if needed (e.g., if model has internal resize outputting different shape)
             if confidence_map.shape != (height, width):
@@ -199,6 +201,7 @@ class CrackInferencePipeline:
                 batch_coords = []
                 
                 for patch_rgb, coordinates in self.extractor.extract(preprocessed_image):
+                    time.sleep(0.001)  # Yield GIL to allow GUI events processing
                     # Transform to tensor/array
                     patch_data = self.preprocessor.transform_patch(patch_rgb)
                     
@@ -231,7 +234,7 @@ class CrackInferencePipeline:
                                 input_feed = np.expand_dims(patch_data_np, axis=0)
                                 raw_out = self.model(input_feed)
                                 # sigmoid equivalent
-                                pred_prob_np = np.squeeze(1 / (1 + np.exp(-raw_out)))
+                                pred_prob_np = np.squeeze(sigmoid_np(raw_out))
                             
                         # Add to blender
                         blender.add(pred_prob_np, coordinates)
@@ -250,6 +253,7 @@ class CrackInferencePipeline:
                 
             # Merge
             confidence_map = blender.merge()
+            del blender
             
         binary_mask = (confidence_map > self.confidence_threshold).astype(np.uint8) * 255
         
@@ -312,7 +316,7 @@ class CrackInferencePipeline:
                     arrays.append(p)
             batch_np = np.stack(arrays).astype(np.float32)
             raw_out = self.model(batch_np)
-            pred_probs_np = 1 / (1 + np.exp(-raw_out))
+            pred_probs_np = sigmoid_np(raw_out)
             
             for i, coordinates in enumerate(batch_coords):
                 pred_prob_np = pred_probs_np[i, 0]
