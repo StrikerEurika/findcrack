@@ -1,7 +1,125 @@
 registry_version: "1.0.2"
-active_models: ["Seg_Unet-v1_CFD", "Seg_YOLO26n-seg-v1_crack-seg"]
+active_models: [ "Seg_Unet-v1_CFD", "Seg_YOLO26n-seg-v1_crack-seg", "Seg_YOLO26n-seg-v1_CFD", "Seg_YOLO11s-seg-v1_CrackAirport", "Seg_YOLO11s-seg-v1_CrackTree260" ]
 
 models:
+
+  Seg_YOLO26n-seg-v1_CFD:
+    name: "YOLO26n-seg-v1 (CFD)"
+    version: "1.0.0"
+    description: "YOLO26n-seg for crack segmentation trained on CFD dataset"
+    producer: "Ultralytics YOLOv26"
+
+    task:
+      specialist: segmentation
+      category: instance_segmentation
+    
+    architecture:
+      library: "ultralytics"
+      arch: "YOLO26n-seg"
+      encoder: null
+      encoder_weights: null
+      in_channels: 3
+      classes: 1
+    
+    input:
+      training_shape: [3, 416, 416]
+      inference_patch_sizes: [256, 512, 1024]
+      dtype: "float32"
+      preprocessing:
+        normalize:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+      
+    training:
+      datasets: ["CFD"]
+      dataset_transparency: "public"
+      dataset_url: null
+      loss_functions: ["YOLOLoss"]
+    
+    artifacts:
+      framework: "ultralytics"
+      format: ["onnx"]
+      model_url: "https://github.com/StrikerEurika/findcrack/releases/download/models/Seg_YOLO26n-seg-v1_CFD_best.onnx"
+      local_path: "./checkpoints/ultralytics/yolo/Seg_YOLO26n-seg-v1_CFD/weights/Seg_YOLO26n-seg-v1_CFD_best.onnx"
+
+  Seg_YOLO11s-seg-v1_CrackTree260:
+    name: "YOLO11s-seg-v1 (CrackTree260)"
+    version: "1.0.0"
+    description: "YOLO11s-seg for crack segmentation trained on CrackTree260 dataset"
+    producer: "Ultralytics YOLOv11"
+
+    task:
+      specialist: segmentation
+      category: instance_segmentation
+
+    architecture:
+      library: "ultralytics"
+      arch: "YOLO11s-seg"
+      encoder: null
+      encoder_weights: null
+      in_channels: 3
+      classes: 1
+
+    input:
+      training_shape: [3, 416, 416]
+      inference_patch_sizes: [256, 512, 1024]
+      dtype: "float32"
+      preprocessing:
+        normalize:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+
+    training:
+      datasets: ["CrackTree260"]
+      dataset_transparency: "public"
+      dataset_url: null
+      loss_functions: ["YOLOLoss"]
+
+    artifacts:
+      framework: "ultralytics"
+      format: ["onnx"]
+      model_url: "https://github.com/StrikerEurika/findcrack/releases/download/models/Seg_YOLO11s-seg-v1_CrackTree260_best.onnx"
+      local_path: "./checkpoints/ultralytics/yolo/Seg_YOLO11s-seg-v1_CrackTree260/weights/Seg_YOLO11s-seg-v1_CrackTree260_best.onnx"
+
+  Seg_YOLO11s-seg-v1_CrackAirport:
+    name: "YOLO11s-seg-v1 (CrackAirport)"
+    version: "1.0.0"
+    description: "YOLO11s-seg for crack segmentation trained on CrackAirport dataset"
+    producer: "Ultralytics YOLOv11"
+
+    task:
+      specialist: segmentation
+      category: instance_segmentation
+
+    architecture:
+      library: "ultralytics"
+      arch: "YOLO11s-seg"
+      encoder: null
+      encoder_weights: null
+      in_channels: 3
+      classes: 1
+
+    input:
+      training_shape: [3, 416, 416]
+      inference_patch_sizes: [256, 512, 1024]
+      dtype: "float32"
+      preprocessing:
+        normalize:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+
+    training:
+      datasets: ["CrackAirport"]
+      dataset_transparency: "public"
+      dataset_url: null
+      loss_functions: ["YOLOLoss"]
+
+    artifacts:
+      framework: "ultralytics"
+      format: ["onnx"]
+      model_url: "https://github.com/StrikerEurika/findcrack/releases/download/models/Seg_YOLO11s-seg-v1_CrackAirport_best.onnx"
+      local_path: "./checkpoints/ultralytics/yolo/Seg_YOLO11s-seg-v1_CrackAirport/weights/Seg_YOLO11s-seg-v1_CrackAirport_best.onnx"
+
   Seg_Unet-v1_CFD:
     name: "Unet-v1 (CFD)"
     version: "1.0.0"

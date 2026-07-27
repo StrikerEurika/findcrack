@@ -39,7 +39,7 @@ if HAS_TORCH:
             if len(self.output_names) >= 2:
                 out0_shape = self.session.get_outputs()[0].shape
                 out1_shape = self.session.get_outputs()[1].shape
-                # YOLOv8-seg E2E output structure: [1, 300, 38] and [1, 32, 128, 128]
+                # YOLO-seg E2E output structure: [1, 300, 38] and [1, 32, H_proto, W_proto]
                 if len(out0_shape) == 3 and out0_shape[2] == 38 and len(out1_shape) == 4 and out1_shape[1] == 32:
                     self.is_yolo_seg = True
                     
@@ -69,7 +69,7 @@ if HAS_TORCH:
             boxes = output0[0, :, 0:4]          # shape (300, 4)
             scores = output0[0, :, 4]           # shape (300,)
             coeffs = output0[0, :, 6:38]        # shape (300, 32)
-            protos = output1[0]                 # shape (32, 128, 128)
+            protos = output1[0]                 # shape (32, H_proto, W_proto)
             
             keep = scores > 0.25
             if not np.any(keep):
@@ -79,7 +79,10 @@ if HAS_TORCH:
             valid_coeffs = coeffs[keep]
             
             N = valid_boxes.shape[0]
-            masks_in = np.matmul(valid_coeffs, protos.reshape(32, -1)).reshape(N, 128, 128)
+            # Dynamically get prototype resolution instead of hardcoding 128x128
+            _, H_proto, W_proto = protos.shape
+            
+            masks_in = np.matmul(valid_coeffs, protos.reshape(32, -1)).reshape(N, H_proto, W_proto)
             
             for i in range(N):
                 box = valid_boxes[i]
@@ -192,7 +195,7 @@ else:
             boxes = output0[0, :, 0:4]          # shape (300, 4)
             scores = output0[0, :, 4]           # shape (300,)
             coeffs = output0[0, :, 6:38]        # shape (300, 32)
-            protos = output1[0]                 # shape (32, 128, 128)
+            protos = output1[0]                 # shape (32, H_proto, W_proto)
             
             keep = scores > 0.25
             if not np.any(keep):
@@ -202,7 +205,10 @@ else:
             valid_coeffs = coeffs[keep]
             
             N = valid_boxes.shape[0]
-            masks_in = np.matmul(valid_coeffs, protos.reshape(32, -1)).reshape(N, 128, 128)
+            # Dynamically get prototype resolution instead of hardcoding 128x128
+            _, H_proto, W_proto = protos.shape
+            
+            masks_in = np.matmul(valid_coeffs, protos.reshape(32, -1)).reshape(N, H_proto, W_proto)
             
             for i in range(N):
                 box = valid_boxes[i]

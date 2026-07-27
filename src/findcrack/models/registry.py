@@ -52,8 +52,6 @@ def load_registry() -> dict:
             if backend == "ultralytics":
                 backend = "onnx"
             url = artifacts.get("model_url", m.get("url"))
-            if not url:
-                continue
             local_path = artifacts.get("local_path", m.get("local_path"))
             if local_path and not Path(local_path).is_absolute():
                 path_obj = Path(local_path)
