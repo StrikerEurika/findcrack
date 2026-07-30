@@ -157,13 +157,13 @@ plt.close()
 ### Model Loading & Caching
 
 #### `load_model(variant: str, device: str = "cpu", force_download: bool = False, architecture = None, **kwargs)`
-Loads a model variant from the local registry or directly from a remote HTTP(S) URL.
+Loads a model variant from the local registry, directly from a remote HTTP(S) URL, or from a local file path on disk.
 
 - **Parameters**:
-  - `variant`: The name of a registered variant (e.g., `"Seg_UNET_CFD_actual_v1"`) or a direct HTTP(S) URL to a weights file.
+  - `variant`: The name of a registered variant (e.g., `"Seg_UNET_CFD_actual_v1"`), a direct HTTP(S) URL to a weights file, or a local file path (e.g., `"/path/to/model.pth"` or `"C:\\path\\to\\model.pt"`). When a local path is provided, the model is loaded directly without registry lookup or download.
   - `device`: Target execution device (`"cpu"`, `"cuda"`, or `"mps"`).
   - `force_download`: If `True`, re-downloads weights even if cached locally.
-  - `architecture`: PyTorch architecture class (e.g., `UNet`, `DeepCrack`) - required only if loading a raw `.pth`/`.pt` file from a custom URL.
+  - `architecture`: PyTorch architecture class (e.g., `UNet`, `DeepCrack`) — required when loading a raw `.pth`/`.pt` file from a URL or a local file path.
 
 ```python
 from findcrack import load_model, UNet
@@ -173,6 +173,15 @@ model = load_model(
     variant="https://my-domain.com/custom_unet.pth",
     architecture=UNet,
     device="cuda"
+)
+
+# Load a model directly from a local file path (no registration required)
+model = load_model(
+    variant="/path/to/my_model.pth",
+    architecture=UNet,
+    kwargs={"encoder_name": "resnet34", "in_channels": 3, "classes": 1},
+    backend="pytorch",
+    device="cpu"
 )
 ```
 
