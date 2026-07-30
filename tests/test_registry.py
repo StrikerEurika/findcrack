@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from findcrack import load_model, list_models, CrackInferencePipeline
@@ -88,6 +89,61 @@ class TestModelZoo(unittest.TestCase):
         # A nonexistent variant should raise ValueError
         with self.assertRaises(ValueError):
             load_model("nonexistent_model_variant_abc", local_checkpoint=True)
+
+    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
+    def test_load_model_from_local_file_path(self):
+        import torch.nn as nn
+
+        class TinyModel(nn.Module):
+            def __init__(self, in_features=10, out_features=1):
+                super().__init__()
+                self.linear = nn.Linear(in_features, out_features)
+            def forward(self, x):
+                return self.linear(x)
+
+        model = TinyModel()
+        with tempfile.NamedTemporaryFile(suffix=".pth", delete=False) as tmp:
+            torch.save(model.state_dict(), tmp.name)
+            tmp_path = tmp.name
+        try:
+            loaded = load_model(
+                tmp_path,
+                device="cpu",
+                architecture=TinyModel,
+                kwargs={"in_features": 10, "out_features": 1},
+                backend="pytorch",
+            )
+            self.assertIsNotNone(loaded)
+            self.assertIsInstance(loaded, TinyModel)
+        finally:
+            os.unlink(tmp_path)
+
+    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
+    def test_load_model_from_local_path_nonexistent_raises(self):
+        import torch.nn as nn
+
+        class TinyModel(nn.Module):
+            def __init__(self, in_features=10, out_features=1):
+                super().__init__()
+                self.linear = nn.Linear(in_features, out_features)
+
+        with self.assertRaises(FileNotFoundError):
+            load_model(
+                "C:/nonexistent/absolute/path/model.pth",
+                device="cpu",
+                architecture=TinyModel,
+                backend="pytorch",
+            )
+
+    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
+    def test_load_model_from_local_path_requires_architecture(self):
+        with tempfile.NamedTemporaryFile(suffix=".pth", delete=False) as tmp:
+            tmp_path = tmp.name
+        try:
+            with self.assertRaises(ValueError):
+                load_model(tmp_path, device="cpu", backend="pytorch")
+        finally:
+            os.unlink(tmp_path)
 
 
 if __name__ == "__main__":

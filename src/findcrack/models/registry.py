@@ -227,7 +227,7 @@ def load_model(
     local_checkpoint: bool = False
 ) -> Any:
     """
-    Dynamic model loader. Supports 3 main scenarios:
+    Dynamic model loader. Supports 4 main scenarios:
 
     1. Auto-download & run (no setup):
         model = load_model("ModelName")
@@ -239,6 +239,10 @@ def load_model(
 
     3. Manual checkpoint (advanced):
         # Download the model yourself, place at path in registry.yml, then call as above with local_checkpoint=True.
+
+    4. Load from a local file path (no registration required):
+        model = load_model("/path/to/model.pth", architecture=UNet, backend="pytorch", kwargs={...})
+        # Loads a PyTorch checkpoint or ONNX model directly from the given path.
 
     Errors and fallback:
         - If no local file and no download URL: error with message showing required path.
@@ -259,14 +263,17 @@ def load_model(
     environment variable (set to 1/true/yes).
 
     Args:
-        variant: Registry name (e.g. 'Seg_UNET_CFD_actual_v1') OR a direct
-            remote URL (e.g. 'https://.../model.pth').
+        variant: Registry name (e.g. 'Seg_UNET_CFD_actual_v1'), a direct
+            remote URL (e.g. 'https://.../model.pth'), or a local file path
+            (e.g. '/path/to/model.pth' or 'C:\\path\\to\\model.pt'). When a
+            local path is provided, the model is loaded directly without
+            registry lookup or download.
         device: Target device for execution ('cpu', 'cuda', 'mps').
         force_download: If True, re-download weights ignoring any cache.
         architecture: Model class (e.g. UNet) - required when loading PyTorch
-            weights from a raw URL.
+            weights from a raw URL or a local file path.
         kwargs: Instantiation kwargs for the architecture (used for URL loads).
-        backend: Backend ('pytorch' or 'onnx'); inferred from URL if omitted.
+        backend: Backend ('pytorch' or 'onnx'); inferred from URL/extension if omitted.
         sha256: Optional SHA256 checksum to verify an downloaded file.
         local_checkpoint: If True, prefer the local checkpoints folder; otherwise
             download from the registry's release URL.
@@ -279,17 +286,18 @@ def load_model(
         or os.environ.get("FINDCRACK_LOCAL_CHECKPOINT", "0").lower() in ("1", "true", "yes")
     )
 
+    cached_file = None
     if is_url:
         url = variant
         if backend is None:
             backend = "onnx" if url.lower().endswith(".onnx") else "pytorch"
-            
+
         if backend == "pytorch" and architecture is None:
             raise ValueError(
                 "You must specify the 'architecture' class (e.g., UNet, DeepCrack) "
                 "when loading a PyTorch model directly from a URL."
             )
-            
+
         config = {
             "architecture": architecture,
             "kwargs": kwargs or {},
@@ -297,14 +305,32 @@ def load_model(
             "url": url,
             "sha256": sha256
         }
+    elif Path(variant).is_file() or Path(variant).is_absolute():
+        _lp = Path(variant)
+        if backend is None:
+            backend = "onnx" if variant.lower().endswith(".onnx") else "pytorch"
+        if backend == "pytorch" and architecture is None:
+            raise ValueError(
+                "You must specify the 'architecture' class (e.g., UNet, DeepCrack) "
+                "when loading a PyTorch model from a local path."
+            )
+        config = {
+            "architecture": architecture,
+            "kwargs": kwargs or {},
+            "backend": backend,
+            "url": None,
+            "sha256": sha256,
+        }
+        if not _lp.is_file():
+            raise FileNotFoundError(f"Local model file not found: {variant}")
+        cached_file = str(_lp.resolve())
+        use_local = False
     else:
         if variant not in MODEL_REGISTRY:
             available_variants = list(MODEL_REGISTRY.keys())
             raise ValueError(f"Unknown variant '{variant}'. Available: {available_variants}")
         config = MODEL_REGISTRY[variant]
         backend = config.get("backend", "pytorch")
-    
-    cached_file = None
 
     # Try resolving to a local checkpoint weight file if flagged
     if use_local:
