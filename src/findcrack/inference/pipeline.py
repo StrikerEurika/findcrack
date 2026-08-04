@@ -39,7 +39,9 @@ class CrackInferencePipeline:
                  batch_size: int = 1,
                  scale_factor: Optional[float] = None,
                  max_dim: Optional[int] = None,
-                 scaler: Optional[ImageScaler] = None):
+                 scaler: Optional[ImageScaler] = None,
+                 filter_background: bool = False,
+                 patch_std_threshold: Optional[float] = None):
         if HAS_TORCH:
             self.device = torch.device(device if torch.cuda.is_available() else "cpu")
             if isinstance(model, torch.nn.Module):
@@ -56,6 +58,13 @@ class CrackInferencePipeline:
         self.use_tta = use_tta
         self.blend_mode = blend_mode
         self.batch_size = batch_size
+        
+        if patch_std_threshold is not None:
+            self.patch_std_threshold = patch_std_threshold
+        elif filter_background:
+            self.patch_std_threshold = 12.0
+        else:
+            self.patch_std_threshold = None
         
         self.overlay_alpha = overlay_alpha
         self.overlay_color = overlay_color
@@ -220,6 +229,13 @@ class CrackInferencePipeline:
                 
                 for patch_rgb, coordinates in self.extractor.extract(preprocessed_image):
                     time.sleep(0.001)  # Yield GIL to allow GUI events processing
+                    
+                    if self.patch_std_threshold is not None:
+                        if not PatchExtractor.is_active_patch(patch_rgb, std_threshold=self.patch_std_threshold):
+                            ph_c, pw_c = patch_rgb.shape[:2]
+                            blender.add(np.zeros((ph_c, pw_c), dtype=np.float32), coordinates)
+                            continue
+
                     # Transform to tensor/array
                     patch_data = self.preprocessor.transform_patch(patch_rgb)
                     

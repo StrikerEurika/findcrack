@@ -49,3 +49,30 @@ class PatchExtractor:
                 seen_coordinates.add((patch_y, patch_x))
 
                 yield image[patch_y:patch_y+self.patch_height, patch_x:patch_x+self.patch_width], (patch_y, patch_x)
+
+    @staticmethod
+    def is_active_patch(patch: np.ndarray, std_threshold: float = 12.0) -> bool:
+        """
+        Fast C++ OpenCV check to evaluate whether a patch contains edges/textures.
+
+        Args:
+            patch: NumPy array image patch.
+            std_threshold: Intensity standard deviation threshold. Patches with stddev below
+                           this threshold are considered featureless background.
+
+        Returns:
+            True if patch stddev >= std_threshold, False otherwise.
+        """
+        import cv2
+        if patch.ndim == 3:
+            if patch.shape[2] == 3:
+                gray = cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY)
+            elif patch.shape[2] == 4:
+                gray = cv2.cvtColor(patch, cv2.COLOR_RGBA2GRAY)
+            else:
+                gray = patch[:, :, 0]
+        else:
+            gray = patch
+
+        _, stddev = cv2.meanStdDev(gray)
+        return float(stddev[0][0]) >= std_threshold

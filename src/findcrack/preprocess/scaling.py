@@ -17,6 +17,7 @@ class ImageScaler:
         max_dim: Optional[int] = None,
         downscale_interpolation: int = cv2.INTER_LINEAR,
         upscale_interpolation: int = cv2.INTER_LINEAR,
+        preserve_dark_features: bool = False,
     ):
         """
         Args:
@@ -24,6 +25,7 @@ class ImageScaler:
             max_dim: Maximum dimension (width or height) allowed. Downscales while preserving aspect ratio. Must be > 0.
             downscale_interpolation: OpenCV interpolation method for downscaling (default: cv2.INTER_LINEAR for speed).
             upscale_interpolation: OpenCV interpolation method for upscaling maps (default: cv2.INTER_LINEAR for smooth probabilities).
+            preserve_dark_features: Applies a 3x3 min-filter (erosion) before downscaling to prevent fine 1-3px dark crack features from washing out.
         """
         if scale_factor is not None and scale_factor <= 0:
             raise ValueError("scale_factor must be positive.")
@@ -34,6 +36,7 @@ class ImageScaler:
         self.max_dim = max_dim
         self.downscale_interpolation = downscale_interpolation
         self.upscale_interpolation = upscale_interpolation
+        self.preserve_dark_features = preserve_dark_features
 
     def calculate_scaled_size(self, original_shape: Tuple[int, ...]) -> Tuple[int, int]:
         """
@@ -77,7 +80,12 @@ class ImageScaler:
         if (target_w, target_h) == (orig_w, orig_h):
             return image, False
 
-        scaled = cv2.resize(image, (target_w, target_h), interpolation=self.downscale_interpolation)
+        to_scale = image
+        if self.preserve_dark_features:
+            kernel = np.ones((3, 3), np.uint8)
+            to_scale = cv2.erode(image, kernel, iterations=1)
+
+        scaled = cv2.resize(to_scale, (target_w, target_h), interpolation=self.downscale_interpolation)
         return scaled, True
 
     def upscale_map(self, prob_map: np.ndarray, target_shape: Tuple[int, ...]) -> np.ndarray:
