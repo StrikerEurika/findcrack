@@ -96,6 +96,8 @@ class TestImageScaler(unittest.TestCase):
         self.assertEqual(results["original_image"].shape, (300, 300, 3))
         self.assertEqual(results["confidence_map"].shape, (300, 300))
         self.assertEqual(results["binary_mask"].shape, (300, 300))
+        self.assertEqual(results["overlay"].shape, (300, 300, 3))
+        self.assertEqual(results["visualization"].shape, (300, 300, 3))
 
     def test_pipeline_patch_filtering_integration(self):
         model_call_count = [0]
