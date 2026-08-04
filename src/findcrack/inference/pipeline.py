@@ -13,7 +13,7 @@ except ImportError:
     HAS_TORCH = False
     torch = None
 
-from ..preprocess import Preprocessor, PatchExtractor
+from ..preprocess import Preprocessor, PatchExtractor, ImageScaler
 from ..postprocess import PatchBlender
 from .tta import tta_forward, tta_forward_np
 from ..models import load_model
@@ -36,7 +36,10 @@ class CrackInferencePipeline:
                  contour_color: tuple = (0, 0, 255),
                  contour_thickness: int = 2,
                  blend_mode: str = "average",
-                 batch_size: int = 1):
+                 batch_size: int = 1,
+                 scale_factor: Optional[float] = None,
+                 max_dim: Optional[int] = None,
+                 scaler: Optional[ImageScaler] = None):
         if HAS_TORCH:
             self.device = torch.device(device if torch.cuda.is_available() else "cpu")
             if isinstance(model, torch.nn.Module):
@@ -68,6 +71,13 @@ class CrackInferencePipeline:
         else:
             self.preprocessor = Preprocessor(use_clahe=use_clahe, clip_limit=clahe_clip_limit)
         
+        if scaler is not None:
+            self.scaler = scaler
+        elif scale_factor is not None or max_dim is not None:
+            self.scaler = ImageScaler(scale_factor=scale_factor, max_dim=max_dim)
+        else:
+            self.scaler = None
+
         # Keep transform attribute for backwards compatibility
         self.transform = self.preprocessor.transform
         
@@ -125,6 +135,14 @@ class CrackInferencePipeline:
 
         height, width, _ = original_image.shape
 
+        # Apply optional early downscaling for optimized compute
+        if self.scaler is not None:
+            processed_image, is_scaled = self.scaler.downscale(original_image)
+        else:
+            processed_image, is_scaled = original_image, False
+
+        proc_height, proc_width, _ = processed_image.shape
+
         # Determine patch dimensions
         if isinstance(self.patch_size, int):
             ph, pw = self.patch_size, self.patch_size
@@ -132,9 +150,9 @@ class CrackInferencePipeline:
             ph, pw = self.patch_size
 
         # Check if the image is smaller than or equal to the patch size
-        if height <= ph and width <= pw:
-            # Bypass patching/blending completely: predict directly on original image size
-            preprocessed_image = self.preprocessor.enhance_contrast(original_image)
+        if proc_height <= ph and proc_width <= pw:
+            # Bypass patching/blending completely: predict directly on processed image size
+            preprocessed_image = self.preprocessor.enhance_contrast(processed_image)
             patch_data = self.preprocessor.transform_patch(preprocessed_image)
             
             # Context manager for torch gradient tracking
@@ -172,12 +190,12 @@ class CrackInferencePipeline:
                         raw_out = self.model(input_feed)
                         confidence_map = np.squeeze(sigmoid_np(raw_out))
             
-            # Rescale if needed (e.g., if model has internal resize outputting different shape)
-            if confidence_map.shape != (height, width):
-                confidence_map = cv2.resize(confidence_map, (width, height), interpolation=cv2.INTER_LINEAR)
+            # Rescale if needed
+            if confidence_map.shape != (proc_height, proc_width):
+                confidence_map = cv2.resize(confidence_map, (proc_width, proc_height), interpolation=cv2.INTER_LINEAR)
         else:
             # Preprocess (LAB-CLAHE)
-            preprocessed_image = self.preprocessor.enhance_contrast(original_image)
+            preprocessed_image = self.preprocessor.enhance_contrast(processed_image)
             
             # Initialize Blender
             blender = PatchBlender(shape=preprocessed_image.shape[:2], blend_mode=self.blend_mode)
@@ -254,6 +272,13 @@ class CrackInferencePipeline:
             # Merge
             confidence_map = blender.merge()
             del blender
+            
+        # Upscale probability map back to full resolution if downscaling was applied
+        if is_scaled and self.scaler is not None:
+            confidence_map = self.scaler.upscale_map(confidence_map, (height, width))
+
+        if confidence_map.shape != (height, width):
+            confidence_map = cv2.resize(confidence_map, (width, height), interpolation=cv2.INTER_LINEAR)
             
         binary_mask = (confidence_map > self.confidence_threshold).astype(np.uint8) * 255
         
