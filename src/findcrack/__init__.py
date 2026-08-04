@@ -1,7 +1,7 @@
 from .inference import CrackInferencePipeline
 from .models import load_model, UNet, list_models, register_model, get_model_status_map
 from .evaluation import calculate_metrics
-from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor, PatchExtractor
+from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor, PatchExtractor, ImageScaler
 from .postprocess import PatchBlender
 
 import importlib.metadata
@@ -21,6 +21,7 @@ __all__ = [
     "get_inference_transform",
     "Preprocessor",
     "PatchExtractor",
+    "ImageScaler",
     "PatchBlender",
     "list_models",
     "register_model",

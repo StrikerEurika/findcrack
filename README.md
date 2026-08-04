@@ -11,6 +11,7 @@
 - **Sliding-Window Inference**: Efficiently process ultra-high-resolution images by dividing them into overlapping patches.
 - **Gaussian & Average Blending**: Reconstructs the full image from patches using overlapping Gaussian blending filters to eliminate edge-seam artifacts.
 - **Test-Time Augmentation (TTA)**: Performs multi-way augmentations (original, horizontal flip, vertical flip, and rotations) to produce highly robust prediction masks.
+- **Fast Multi-Scale Inference (Downscaling/Upscaling)**: Accelerates processing speed on large images by performing early downscaling prior to CLAHE and patch extraction, upscaling predicted probability maps smoothly back to full resolution.
 - **Validation Metrics**: Compute standard segmentation metrics like IoU, Dice Coefficient, Precision, Recall, and Pixel Accuracy.
 
 ---
