@@ -117,5 +117,5 @@ else:
         def __init__(self, *args, **kwargs):
             raise ImportError(
                 "UNet requires PyTorch. Please install PyTorch or "
-                "install findcrack with standard extras: pip install findcrack[standard]"
-            )
+                "install findcrack with standard extras: pip install findcrack[standard] or uv add findcrack --extra standard"
+            )
