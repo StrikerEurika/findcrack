@@ -46,3 +46,5 @@ demo/notebooks/benchmark_outputs*
 demo/notebooks/*.zip
 demo/notebooks/*.png
 demo/notebooks/images
+
+demo/notebooks/benchmarks
