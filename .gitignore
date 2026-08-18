@@ -41,10 +41,5 @@ predicted_images_plot.png
 # Generated version file
 src/findcrack/_version.py
 
-!demo/notebooks/*
-demo/notebooks/benchmark_outputs*
-demo/notebooks/*.zip
-demo/notebooks/*.png
-demo/notebooks/images
-
-demo/notebooks/benchmarks
+demo/
+.pytest_cache/
