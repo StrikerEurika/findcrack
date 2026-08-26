@@ -3,6 +3,7 @@ from .models import load_model, UNet, list_models, register_model, get_model_sta
 from .evaluation import calculate_metrics
 from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor, PatchExtractor, ImageScaler
 from .postprocess import PatchBlender
+from .backends import get_backend, PyTorchBackend, ONNXCPUBackend, ONNXCUDABackend
 
 import importlib.metadata
 
@@ -26,5 +27,10 @@ __all__ = [
     "list_models",
     "register_model",
     "get_model_status_map",
+
+    "get_backend",
+    "PyTorchBackend",
+    "ONNXCPUBackend",
+    "ONNXCUDABackend",
 ]
 

@@ -3,7 +3,7 @@ name = "findcrack"
 version = "0.1.8"
 description = "A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 authors = [
     { name = "StrikerEurika" }
 ]
@@ -16,11 +16,11 @@ classifiers = [
 ]
 dependencies = [
     "albumentations>=1.3.0",
-    "onnxruntime>=1.16.0",
+    "onnxruntime-gpu>=1.20.0,<1.27.0",
     "opencv-python>=4.8.0",
     "pillow>=9.5.0",
     "pyyaml>=6.0",
-    "numpy>=1.24.0",
+    "numpy<2",
     "matplotlib>=3.11.1",
     "scikit-image>=0.26.0",
     "scipy>=1.17.1",
@@ -31,6 +31,11 @@ dependencies = [
     "ipykernel>=7.3.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/StrikerEurika/findcrack"
+Repository = "https://github.com/StrikerEurika/findcrack"
+Releases = "https://github.com/StrikerEurika/findcrack/releases"
+
 [project.optional-dependencies]
 standard = [
     "torch>=2.0.0",
@@ -38,17 +43,21 @@ standard = [
     "torchvision>=0.15.0",
     "segmentation-models-pytorch>=0.3.0",
 ]
-torch = [
+
+gpu = [
     "torch>=2.0.0",
-    "torchaudio>=2.0.0",
     "torchvision>=0.15.0",
-    "segmentation-models-pytorch>=0.3.0",
 ]
 
-[project.urls]
-Homepage = "https://github.com/StrikerEurika/findcrack"
-Repository = "https://github.com/StrikerEurika/findcrack"
-Releases = "https://github.com/StrikerEurika/findcrack/releases"
+cuda-runtime = [
+    "nvidia-cublas-cu12",
+    "nvidia-cudnn-cu12",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -62,17 +71,10 @@ build-backend = "setuptools.build_meta"
 
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu118"
+url = "https://download.pytorch.org/whl/cu124"
 explicit = true
 
-[dependency-groups]
-dev = [
-    "findcrack[standard]",
-    "pytest>=7.0.0",
-]
-
 [tool.uv.sources]
-findcrack = { workspace = true, editable = true }
 torch = { index = "pytorch" }
 torchvision = { index = "pytorch" }
 torchaudio = { index = "pytorch" }

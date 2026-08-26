@@ -15,6 +15,17 @@ except ImportError:
 from .onnx_wrapper import ONNXModelWrapper
 
 
+def _normalize_device(device: str) -> str:
+    d = str(device).lower().strip()
+    if d in ("gpu", "cuda"):
+        return "cuda"
+    if d == "cpu":
+        return "cpu"
+    if d in ("mps", "apple"):
+        return "mps"
+    return d
+
+
 def load_registry() -> dict:
     """
     Loads and normalizes the model registry from config/registry.yml.
@@ -368,10 +379,11 @@ def load_model(
             )
         # Safe device selection
         target_device = device
-        if "cuda" in str(device) and not torch.cuda.is_available():
+        normalized = _normalize_device(device)
+        if normalized == "cuda" and not torch.cuda.is_available():
             print("Warning: CUDA is not available. Falling back to CPU.")
             target_device = "cpu"
-        elif "mps" in str(device) and not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
+        elif normalized == "mps" and not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
             print("Warning: MPS is not available. Falling back to CPU.")
             target_device = "cpu"
             

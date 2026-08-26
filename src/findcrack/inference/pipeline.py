@@ -16,18 +16,19 @@ except ImportError:
 from ..preprocess import Preprocessor, PatchExtractor, ImageScaler
 from ..postprocess import PatchBlender
 from .tta import tta_forward, tta_forward_np
-from ..models import load_model
 from ..utils import sigmoid_np
 
 
 class CrackInferencePipeline:
     """
-    pipeline for running inference on large images.
+    Pipeline for running inference on large images.
+    Uses the backends package for device-aware inference execution.
     """
-    def __init__(self, model, device: str = "cuda",
-                 patch_size: int = 512, overlap_ratio: float = 0.2, 
+
+    def __init__(self, model=None, device: str = "cuda",
+                 patch_size: int = 512, overlap_ratio: float = 0.2,
                  confidence_threshold: float = 0.5, use_tta: bool = False,
-                 preprocessor: Optional[Preprocessor]  = None, use_clahe: bool = True,
+                 preprocessor: Optional[Preprocessor] = None, use_clahe: bool = True,
                  clahe_clip_limit: float = 2.0,
                  overlay_alpha: float = 0.4,
                  overlay_color: tuple = (255, 0, 0),
@@ -42,44 +43,38 @@ class CrackInferencePipeline:
                  scaler: Optional[ImageScaler] = None,
                  filter_background: bool = False,
                  patch_std_threshold: Optional[float] = None):
-        if HAS_TORCH:
-            self.device = torch.device(device if torch.cuda.is_available() else "cpu")
-            if isinstance(model, torch.nn.Module):
-                self.model = model.to(self.device).eval()
-            else:
-                self.model = model
-        else:
-            self.device = device
-            self.model = model
-            
+
+        self.backend = self._resolve_backend(model, device)
+
+        self.device = getattr(self.backend, "device", device)
         self.patch_size = patch_size
         self.overlap_ratio = overlap_ratio
         self.confidence_threshold = confidence_threshold
         self.use_tta = use_tta
         self.blend_mode = blend_mode
         self.batch_size = batch_size
-        
+
         if patch_std_threshold is not None:
             self.patch_std_threshold = patch_std_threshold
         elif filter_background:
             self.patch_std_threshold = 12.0
         else:
             self.patch_std_threshold = None
-        
+
         self.overlay_alpha = overlay_alpha
         self.overlay_color = overlay_color
         self.box_color = box_color
         self.box_thickness = box_thickness
         self.contour_color = contour_color
         self.contour_thickness = contour_thickness
-        
+
         self.extractor = PatchExtractor(self.patch_size, self.overlap_ratio)
-        
+
         if preprocessor is not None:
             self.preprocessor = preprocessor
         else:
             self.preprocessor = Preprocessor(use_clahe=use_clahe, clip_limit=clahe_clip_limit)
-        
+
         if scaler is not None:
             self.scaler = scaler
         elif scale_factor is not None or max_dim is not None:
@@ -87,34 +82,86 @@ class CrackInferencePipeline:
         else:
             self.scaler = None
 
-        # Keep transform attribute for backwards compatibility
         self.transform = self.preprocessor.transform
-        
+
+    @staticmethod
+    def _resolve_backend(model, device: str):
+        """Resolve a model instance or path to an inference backend."""
+        if model is None:
+            return None
+
+        if hasattr(model, "_backend") and hasattr(model._backend, "backend_type"):
+            return model._backend
+
+        if hasattr(model, "backend_type"):
+            return model
+
+        if isinstance(model, str) and model.lower().endswith(".onnx"):
+            from findcrack.backends import get_backend
+            return get_backend(model_path=model, device=device, backend="onnx")
+
+        if HAS_TORCH and isinstance(model, torch.nn.Module):
+            from findcrack.backends import PyTorchBackend
+            return PyTorchBackend(model, device)
+
+        return model
+
     @classmethod
     def from_checkpoint(cls, model_class, checkpoint_path: str, **kwargs):
         """
-        Helper function to load model
+        Helper function to load model from a checkpoint.
         """
         if not HAS_TORCH:
             raise ImportError(
                 "Loading a model from a checkpoint requires PyTorch. Please install PyTorch or "
                 "install findcrack with standard extras: pip install findcrack[standard]"
             )
-        model = model_class(n_channels=3, n_classes=1)  # Assuming binary segmentation
+        model = model_class(n_channels=3, n_classes=1)
         state_dict = torch.load(checkpoint_path, map_location="cpu")
         model.load_state_dict(state_dict)
-
         return cls(model, **kwargs)
-    
+
     @classmethod
     def from_pretrained(cls, variant: str, device: str = "cuda", local_checkpoint: bool = False, **kwargs):
         """
         Helper function to load pretrained model from the model registry.
         """
+        from ..models import load_model
         model = load_model(variant, device=device, local_checkpoint=local_checkpoint)
         return cls(model, device=device, **kwargs)
-        
-    
+
+    def _prepare_input(self, patch_data, batch_size: int):
+        """Convert patch data to the format expected by the backend."""
+        is_pytorch = getattr(self.backend, "backend_type", None) == "pytorch"
+
+        if is_pytorch and HAS_TORCH and isinstance(patch_data, torch.Tensor):
+            if not isinstance(patch_data, torch.Tensor):
+                patch_tensor = torch.from_numpy(patch_data).float()
+            else:
+                patch_tensor = patch_data
+            return patch_tensor.to(self.device), True
+        else:
+            if HAS_TORCH and isinstance(patch_data, torch.Tensor):
+                patch_np = patch_data.cpu().numpy()
+            else:
+                patch_np = patch_data
+            return np.expand_dims(patch_np.astype(np.float32), axis=0), False
+
+    def _run_inference(self, input_data, is_torch: bool):
+        """Run backend inference and return probability map as numpy."""
+        if self.use_tta:
+            if is_torch:
+                pred = tta_forward(self.backend.model, input_data.squeeze(0))
+                return pred.cpu().numpy()
+            else:
+                return tta_forward_np(self.backend, input_data.squeeze(0))
+        else:
+            raw_out = self.backend(input_data)
+            if is_torch:
+                return torch.sigmoid(raw_out).squeeze().cpu().numpy()
+            else:
+                return np.squeeze(sigmoid_np(raw_out))
+
     def predict(self, image_input: str | Path | np.ndarray | Image.Image) -> dict:
         """
         Runs full inference pipeline on an image (path, numpy array, or PIL Image).
@@ -127,7 +174,6 @@ class CrackInferencePipeline:
         - contours: List of segmentation contours for detected cracks.
         - visualization: Original image with bounding boxes drawn and contours outlined.
         """
-        # Resolve image input into RGB np.ndarray
         if isinstance(image_input, (str, Path)):
             original_image = np.array(Image.open(image_input).convert('RGB'))
         elif isinstance(image_input, Image.Image):
@@ -144,7 +190,6 @@ class CrackInferencePipeline:
 
         height, width, _ = original_image.shape
 
-        # Apply optional early downscaling for optimized compute
         if self.scaler is not None:
             processed_image, is_scaled = self.scaler.downscale(original_image)
         else:
@@ -152,177 +197,89 @@ class CrackInferencePipeline:
 
         proc_height, proc_width, _ = processed_image.shape
 
-        # Determine patch dimensions
         if isinstance(self.patch_size, int):
             ph, pw = self.patch_size, self.patch_size
         else:
             ph, pw = self.patch_size
 
-        # Check if the image is smaller than or equal to the patch size
+        is_pytorch_backend = getattr(self.backend, "backend_type", None) == "pytorch"
+
         if proc_height <= ph and proc_width <= pw:
-            # Bypass patching/blending completely: predict directly on processed image size
             preprocessed_image = self.preprocessor.enhance_contrast(processed_image)
             patch_data = self.preprocessor.transform_patch(preprocessed_image)
-            
-            # Context manager for torch gradient tracking
-            class DummyContext:
-                def __enter__(self): pass
-                def __exit__(self, exc_type, exc_val, exc_tb): pass
 
-            context = torch.no_grad() if HAS_TORCH else DummyContext()
-            use_torch_inference = HAS_TORCH and isinstance(self.model, torch.nn.Module)
-            
-            with context:
-                if use_torch_inference:
-                    if not isinstance(patch_data, torch.Tensor):
-                        patch_tensor = torch.from_numpy(patch_data).float()
-                    else:
-                        patch_tensor = patch_data
-                    patch_tensor = patch_tensor.to(self.device)
-                    
-                    if self.use_tta:
-                        pred_prob = tta_forward(self.model, patch_tensor)
-                    else:
-                        pred_prob = torch.sigmoid(self.model(patch_tensor.unsqueeze(0))).squeeze()
-                        
-                    confidence_map = pred_prob.cpu().numpy()
-                else:
-                    if HAS_TORCH and isinstance(patch_data, torch.Tensor):
-                        patch_data_np = patch_data.cpu().numpy()
-                    else:
-                        patch_data_np = patch_data
-                        
-                    if self.use_tta:
-                        confidence_map = tta_forward_np(self.model, patch_data_np)
-                    else:
-                        input_feed = np.expand_dims(patch_data_np, axis=0)
-                        raw_out = self.model(input_feed)
-                        confidence_map = np.squeeze(sigmoid_np(raw_out))
-            
-            # Rescale if needed
+            input_data, is_torch = self._prepare_input(patch_data, batch_size=1)
+            confidence_map = self._run_inference(input_data, is_torch=is_pytorch_backend and is_torch)
+
             if confidence_map.shape != (proc_height, proc_width):
                 confidence_map = cv2.resize(confidence_map, (proc_width, proc_height), interpolation=cv2.INTER_LINEAR)
         else:
-            # Preprocess (LAB-CLAHE)
             preprocessed_image = self.preprocessor.enhance_contrast(processed_image)
-            
-            # Initialize Blender
             blender = PatchBlender(shape=preprocessed_image.shape[:2], blend_mode=self.blend_mode)
-            
-            # Context manager for torch gradient tracking
-            class DummyContext:
-                def __enter__(self): pass
-                def __exit__(self, exc_type, exc_val, exc_tb): pass
 
-            context = torch.no_grad() if HAS_TORCH else DummyContext()
-            use_torch_inference = HAS_TORCH and isinstance(self.model, torch.nn.Module)
-            
-            # Check if the model has a YOLO segmentation structure
-            is_yolo_seg = getattr(self.model, "is_yolo_seg", False)
-            # TTA and YOLOv8-seg expect single patch processing
+            is_yolo_seg = getattr(self.backend, "is_yolo_seg", False)
             actual_batch_size = 1 if (self.use_tta or is_yolo_seg) else self.batch_size
-            
-            with context:
-                # Sliding Window Inference
-                batch_patches = []
-                batch_coords = []
-                
-                for patch_rgb, coordinates in self.extractor.extract(preprocessed_image):
-                    time.sleep(0.001)  # Yield GIL to allow GUI events processing
-                    
-                    if self.patch_std_threshold is not None:
-                        if not PatchExtractor.is_active_patch(patch_rgb, std_threshold=self.patch_std_threshold):
-                            ph_c, pw_c = patch_rgb.shape[:2]
-                            blender.add(np.zeros((ph_c, pw_c), dtype=np.float32), coordinates)
-                            continue
 
-                    # Transform to tensor/array
-                    patch_data = self.preprocessor.transform_patch(patch_rgb)
-                    
-                    if actual_batch_size == 1:
-                        # Run Model
-                        if use_torch_inference:
-                            if not isinstance(patch_data, torch.Tensor):
-                                patch_tensor = torch.from_numpy(patch_data).float()
-                            else:
-                                patch_tensor = patch_data
-                            patch_tensor = patch_tensor.to(self.device)
-                            
-                            if self.use_tta:
-                                pred_prob = tta_forward(self.model, patch_tensor)
-                            else:
-                                pred_prob = torch.sigmoid(self.model(patch_tensor.unsqueeze(0))).squeeze()
-                                
-                            pred_prob_np = pred_prob.cpu().numpy()
-                        else:
-                            # Pure NumPy / ONNX path
-                            if HAS_TORCH and isinstance(patch_data, torch.Tensor):
-                                patch_data_np = patch_data.cpu().numpy()
-                            else:
-                                patch_data_np = patch_data
-                                
-                            if self.use_tta:
-                                pred_prob_np = tta_forward_np(self.model, patch_data_np)
-                            else:
-                                # unsqueeze equivalent
-                                input_feed = np.expand_dims(patch_data_np, axis=0)
-                                raw_out = self.model(input_feed)
-                                # sigmoid equivalent
-                                pred_prob_np = np.squeeze(sigmoid_np(raw_out))
-                            
-                        # Add to blender
-                        blender.add(pred_prob_np, coordinates)
-                    else:
-                        batch_patches.append(patch_data)
-                        batch_coords.append(coordinates)
-                        
-                        if len(batch_patches) == actual_batch_size:
-                            self._process_batch(batch_patches, batch_coords, blender, use_torch_inference)
-                            batch_patches = []
-                            batch_coords = []
-                
-                # Process remaining patches
-                if len(batch_patches) > 0:
-                    self._process_batch(batch_patches, batch_coords, blender, use_torch_inference)
-                
-            # Merge
+            batch_patches = []
+            batch_coords = []
+
+            for patch_rgb, coordinates in self.extractor.extract(preprocessed_image):
+                time.sleep(0.001)
+
+                if self.patch_std_threshold is not None:
+                    if not PatchExtractor.is_active_patch(patch_rgb, std_threshold=self.patch_std_threshold):
+                        ph_c, pw_c = patch_rgb.shape[:2]
+                        blender.add(np.zeros((ph_c, pw_c), dtype=np.float32), coordinates)
+                        continue
+
+                patch_data = self.preprocessor.transform_patch(patch_rgb)
+
+                if actual_batch_size == 1:
+                    input_data, is_torch = self._prepare_input(patch_data, batch_size=1)
+                    pred_prob_np = self._run_inference(input_data, is_torch=is_pytorch_backend and is_torch)
+                    blender.add(pred_prob_np, coordinates)
+                else:
+                    batch_patches.append(patch_data)
+                    batch_coords.append(coordinates)
+
+                    if len(batch_patches) == actual_batch_size:
+                        self._process_batch(batch_patches, batch_coords, blender)
+                        batch_patches = []
+                        batch_coords = []
+
+            if len(batch_patches) > 0:
+                self._process_batch(batch_patches, batch_coords, blender)
+
             confidence_map = blender.merge()
             del blender
-            
-        # Upscale probability map back to full resolution if downscaling was applied
+
         if is_scaled and self.scaler is not None:
             confidence_map = self.scaler.upscale_map(confidence_map, (height, width))
 
         if confidence_map.shape != (height, width):
             confidence_map = cv2.resize(confidence_map, (width, height), interpolation=cv2.INTER_LINEAR)
-            
+
         binary_mask = (confidence_map > self.confidence_threshold).astype(np.uint8) * 255
-        
-        # Extract connected component contours and bounding boxes
+
         contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+
         bounding_boxes = []
         valid_contours = []
         for ctr in contours:
-            # Filter out tiny noise components (area > 5 pixels)
             if cv2.contourArea(ctr) > 5:
                 x, y, w, h = cv2.boundingRect(ctr)
                 bounding_boxes.append([x, y, x + w, y + h])
                 valid_contours.append(ctr)
-                
-        # Generate transparent overlay (original blended with solid color mask)
+
         overlay = original_image.copy()
         overlay[binary_mask > 0] = self.overlay_color
         overlay_blended = cv2.addWeighted(overlay, self.overlay_alpha, original_image, 1 - self.overlay_alpha, 0)
-        
-        # Generate full visualization with bounding boxes and contour boundaries
+
         visualization = original_image.copy()
-        # Draw bounding boxes
         for box in bounding_boxes:
             cv2.rectangle(visualization, (box[0], box[1]), (box[2], box[3]), self.box_color, self.box_thickness)
-        # Draw contours outline
         cv2.drawContours(visualization, valid_contours, -1, self.contour_color, self.contour_thickness)
-        
+
         return {
             "original_image": original_image,
             "confidence_map": confidence_map,
@@ -333,8 +290,10 @@ class CrackInferencePipeline:
             "visualization": visualization
         }
 
-    def _process_batch(self, batch_patches, batch_coords, blender, use_torch_inference):
-        if use_torch_inference:
+    def _process_batch(self, batch_patches, batch_coords, blender):
+        is_pytorch_backend = getattr(self.backend, "backend_type", None) == "pytorch"
+
+        if is_pytorch_backend and HAS_TORCH:
             tensors = []
             for p in batch_patches:
                 if not isinstance(p, torch.Tensor):
@@ -342,9 +301,10 @@ class CrackInferencePipeline:
                 else:
                     tensors.append(p)
             batch_tensor = torch.stack(tensors).to(self.device)
-            logits = self.model(batch_tensor)
+            with torch.no_grad():
+                logits = self.backend(batch_tensor)
             pred_probs = torch.sigmoid(logits)
-            
+
             for i, coordinates in enumerate(batch_coords):
                 pred_prob_np = pred_probs[i, 0].cpu().numpy()
                 blender.add(pred_prob_np, coordinates)
@@ -356,9 +316,9 @@ class CrackInferencePipeline:
                 else:
                     arrays.append(p)
             batch_np = np.stack(arrays).astype(np.float32)
-            raw_out = self.model(batch_np)
+            raw_out = self.backend(batch_np)
             pred_probs_np = sigmoid_np(raw_out)
-            
+
             for i, coordinates in enumerate(batch_coords):
                 pred_prob_np = pred_probs_np[i, 0]
                 blender.add(pred_prob_np, coordinates)
