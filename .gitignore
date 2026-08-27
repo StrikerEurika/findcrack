@@ -43,3 +43,5 @@ src/findcrack/_version.py
 
 demo/
 .pytest_cache/
+
+.kilo/
