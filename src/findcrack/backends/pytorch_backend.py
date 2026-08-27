@@ -33,3 +33,7 @@ class PyTorchBackend:
     @property
     def backend_type(self) -> str:
         return "pytorch"
+
+    @property
+    def baked_normalization(self) -> bool:
+        return False

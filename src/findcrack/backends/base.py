@@ -30,3 +30,7 @@ class Backend(ABC):
     @property
     def backend_type(self) -> str:
         return "unknown"
+
+    @property
+    def baked_normalization(self) -> bool:
+        return False

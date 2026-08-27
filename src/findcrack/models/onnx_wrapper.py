@@ -11,7 +11,8 @@ except ImportError:
 
 if HAS_TORCH:
     class ONNXModelWrapper(nn.Module):
-        """Backward-compatible wrapper that delegates to the backends package.
+        """
+        Backward-compatible wrapper that delegates to the backends package.
 
         Retains nn.Module inheritance so isinstance checks in the pipeline
         continue to work, but actual inference is routed to the optimal
@@ -24,13 +25,17 @@ if HAS_TORCH:
             self._device = self._backend.device
 
         def forward(self, x: "torch.Tensor") -> "torch.Tensor":
-            x_np = x.detach().cpu().numpy().astype(np.float32)
+            x_np = x.detach().cpu().numpy()
             out_np = self._backend(x_np)
             return torch.from_numpy(out_np).to(x.device)
 
         @property
         def is_yolo_seg(self):
             return getattr(self._backend, "is_yolo_seg", False)
+
+        @property
+        def baked_normalization(self):
+            return getattr(self._backend, "baked_normalization", False)
 
         @property
         def expected_size(self):
@@ -49,6 +54,10 @@ else:
         @property
         def is_yolo_seg(self):
             return getattr(self._backend, "is_yolo_seg", False)
+
+        @property
+        def baked_normalization(self):
+            return getattr(self._backend, "baked_normalization", False)
 
         @property
         def expected_size(self):

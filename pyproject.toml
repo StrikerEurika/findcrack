@@ -1,6 +1,6 @@
 [project]
 name = "findcrack"
-version = "0.1.8"
+version = "0.1.9"
 description = "A deep learning crack detection package supporting U-Net and DeepCrack models with PyTorch and ONNX backends."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -29,6 +29,7 @@ dependencies = [
     "scikit-learn>=1.9.0",
     "tqdm>=4.69.0",
     "ipykernel>=7.3.0",
+    "onnx>=1.19.0",
 ]
 
 [project.urls]

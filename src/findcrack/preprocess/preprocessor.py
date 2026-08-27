@@ -1,6 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Union
 import albumentations as A
 from .clahe import apply_lab_clahe
 
@@ -25,6 +25,7 @@ class Preprocessor:
         tile_grid_size: Tuple[int, int] = (8, 8),
         mean: Tuple[float, float, float] = (0.485, 0.456, 0.406),
         std: Tuple[float, float, float] = (0.229, 0.224, 0.225),
+        normalize: Union[bool, str] = True,
         additional_transforms: Optional[List[A.BasicTransform]] = None
     ):
         self.use_clahe = use_clahe
@@ -32,21 +33,35 @@ class Preprocessor:
         self.tile_grid_size = tile_grid_size
         self.mean = mean
         self.std = std
-        
+
+        if isinstance(normalize, bool):
+            self.normalize_mode = "standard" if normalize else "none"
+        else:
+            if normalize not in ("standard", "scale_only", "none"):
+                raise ValueError(
+                    f"normalize must be True, False, 'standard', 'scale_only', or 'none', got: {normalize}"
+                )
+            self.normalize_mode = normalize
+
         transforms = []
         if additional_transforms:
             transforms.extend(additional_transforms)
-        
-        transforms.append(A.Normalize(mean=self.mean, std=self.std))
-        if HAS_TORCH:
+
+        if self.normalize_mode == "standard":
+            transforms.append(A.Normalize(mean=self.mean, std=self.std))
+        elif self.normalize_mode == "scale_only":
+            transforms.append(A.Normalize(mean=(0.0, 0.0, 0.0), std=(1.0, 1.0, 1.0)))
+
+        if self.normalize_mode != "none" and HAS_TORCH:
             transforms.append(ToTensorV2())
-            
+
         self.transform = A.Compose(transforms)
 
     def enhance_contrast(self, image: np.ndarray) -> np.ndarray:
         """
         Applies LAB-CLAHE contrast enhancement if enabled.
         """
+
         if self.use_clahe:
             return apply_lab_clahe(image, clip_limit=self.clip_limit, tile_grid_size=self.tile_grid_size)
         return image
@@ -57,8 +72,15 @@ class Preprocessor:
         """
         transformed = self.transform(image=patch)
         img = transformed["image"]
+
+        if self.normalize_mode == "none":
+            if isinstance(img, np.ndarray):
+                img = img.astype(np.float32)
+                if img.ndim == 3:
+                    img = np.transpose(img, (2, 0, 1))
+            return img
+
         if not HAS_TORCH:
-            # Transpose HWC to CHW to match torch format
             img = np.transpose(img, (2, 0, 1))
         return img
 
@@ -72,4 +94,3 @@ class Preprocessor:
         enhanced = self.enhance_contrast(image)
         tensor = self.transform_patch(enhanced)
         return enhanced, tensor
-

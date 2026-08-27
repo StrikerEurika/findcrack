@@ -42,11 +42,26 @@ class CrackInferencePipeline:
                  max_dim: Optional[int] = None,
                  scaler: Optional[ImageScaler] = None,
                  filter_background: bool = False,
-                 patch_std_threshold: Optional[float] = None):
+                 patch_std_threshold: Optional[float] = None,
+                 normalize: Optional[str] = None):
 
         self.backend = self._resolve_backend(model, device)
 
         self.device = getattr(self.backend, "device", device)
+
+        if normalize is None:
+            baked = getattr(self.backend, "baked_normalization", False)
+            if baked:
+                input_dtype = getattr(self.backend, "input_dtype", np.float32)
+                if input_dtype == np.uint8:
+                    self.normalize_mode = "none"
+                else:
+                    self.normalize_mode = "scale_only"
+            else:
+                self.normalize_mode = "standard"
+        else:
+            self.normalize_mode = normalize
+
         self.patch_size = patch_size
         self.overlap_ratio = overlap_ratio
         self.confidence_threshold = confidence_threshold
@@ -73,7 +88,11 @@ class CrackInferencePipeline:
         if preprocessor is not None:
             self.preprocessor = preprocessor
         else:
-            self.preprocessor = Preprocessor(use_clahe=use_clahe, clip_limit=clahe_clip_limit)
+            self.preprocessor = Preprocessor(
+                use_clahe=use_clahe,
+                clip_limit=clahe_clip_limit,
+                normalize=self.normalize_mode,
+            )
 
         if scaler is not None:
             self.scaler = scaler
@@ -131,7 +150,9 @@ class CrackInferencePipeline:
         return cls(model, device=device, **kwargs)
 
     def _prepare_input(self, patch_data, batch_size: int):
-        """Convert patch data to the format expected by the backend."""
+        """
+        Convert patch data to the format expected by the backend.
+        """
         is_pytorch = getattr(self.backend, "backend_type", None) == "pytorch"
 
         if is_pytorch and HAS_TORCH and isinstance(patch_data, torch.Tensor):

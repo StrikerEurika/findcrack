@@ -70,6 +70,7 @@ class ONNXCUDABackend:
     """
 
     def __init__(self, model_path: str):
+        self.model_path = model_path
         ort = _require_ort()
         available = ort.get_available_providers()
         if "CUDAExecutionProvider" not in available:
@@ -117,6 +118,7 @@ class ONNXCUDABackend:
 
         self._detect_yolo_seg()
         self._detect_expected_size()
+        self._detect_baked_normalization()
 
         self._io_binding = self.session.io_binding()
         self._input_ortvalue = None
@@ -149,6 +151,37 @@ class ONNXCUDABackend:
             )
         else:
             self.expected_size = (None, None)
+
+    def _detect_baked_normalization(self):
+        input_type = str(self.session.get_inputs()[0].type)
+        if "uint8" in input_type:
+            self.baked_normalization = True
+            self.input_dtype = np.uint8
+            return
+
+        try:
+            import onnx
+
+            model = onnx.load(self.model_path)
+            graph = model.graph
+            input_name = graph.input[0].name
+            initializer_names = {init.name for init in graph.initializer}
+
+            for node in list(graph.node)[:30]:
+                if input_name in node.input:
+                    if (
+                        node.op_type in ("Sub", "Div", "Mul", "Add")
+                        and len(node.input) >= 2
+                        and node.input[1] in initializer_names
+                    ):
+                        self.baked_normalization = True
+                        self.input_dtype = np.float32
+                        return
+        except Exception:
+            pass
+
+        self.baked_normalization = False
+        self.input_dtype = np.float32
 
     def _postprocess_yolo_seg(self, output0, output1, target_shape):
         h_img, w_img = target_shape
@@ -205,7 +238,7 @@ class ONNXCUDABackend:
 
     def __call__(self, x) -> np.ndarray:
         ort = _require_ort()
-        x_np = np.asarray(x, dtype=np.float32)
+        x_np = np.asarray(x, dtype=self.input_dtype)
         orig_size = (x_np.shape[2], x_np.shape[3])
 
         if self.expected_size[0] and self.expected_size[1]:

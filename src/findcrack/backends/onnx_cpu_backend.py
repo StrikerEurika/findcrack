@@ -19,6 +19,7 @@ class ONNXCPUBackend:
 
     def __init__(self, model_path: str):
         ort = _require_ort()
+        self.model_path = model_path
         self.session = ort.InferenceSession(
             model_path,
             providers=["CPUExecutionProvider"],
@@ -28,6 +29,7 @@ class ONNXCPUBackend:
 
         self._detect_yolo_seg()
         self._detect_expected_size()
+        self._detect_baked_normalization()
 
     def _detect_yolo_seg(self):
         self.is_yolo_seg = False
@@ -56,6 +58,38 @@ class ONNXCPUBackend:
             )
         else:
             self.expected_size = (None, None)
+
+    def _detect_baked_normalization(self):
+        input_type = str(self.session.get_inputs()[0].type)
+        if "uint8" in input_type:
+            self.baked_normalization = True
+            self.input_dtype = np.uint8
+            return
+
+        try:
+            import onnx
+            from onnx import numpy_helper
+
+            model = onnx.load(self.model_path)
+            graph = model.graph
+            input_name = graph.input[0].name
+            initializer_names = {init.name for init in graph.initializer}
+
+            for node in list(graph.node)[:30]:
+                if input_name in node.input:
+                    if (
+                        node.op_type in ("Sub", "Div", "Mul", "Add")
+                        and len(node.input) >= 2
+                        and node.input[1] in initializer_names
+                    ):
+                        self.baked_normalization = True
+                        self.input_dtype = np.float32
+                        return
+        except Exception:
+            pass
+
+        self.baked_normalization = False
+        self.input_dtype = np.float32
 
     def _postprocess_yolo_seg(self, output0, output1, target_shape):
         h_img, w_img = target_shape
@@ -124,10 +158,10 @@ class ONNXCPUBackend:
                 x = np.expand_dims(np.transpose(x_resized, (2, 0, 1)), axis=0)
 
         if self.is_yolo_seg:
-            outputs = self.session.run(self.output_names, {self.input_name: x.astype(np.float32)})
+            outputs = self.session.run(self.output_names, {self.input_name: x.astype(self.input_dtype)})
             return self._postprocess_yolo_seg(outputs[0], outputs[1], orig_size)
         else:
-            outputs = self.session.run([self.output_names[0]], {self.input_name: x.astype(np.float32)})
+            outputs = self.session.run([self.output_names[0]], {self.input_name: x.astype(self.input_dtype)})
             out_np = outputs[0]
 
             if out_np.shape[2:] != orig_size:
