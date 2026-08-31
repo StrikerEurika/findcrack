@@ -16,8 +16,8 @@ def main():
     pipeline = CrackInferencePipeline(
         model=model_path,
         device="cuda",          # Uses GPU (will fall back to CPU if GPU is unavailable)
-        patch_size=256,         # Sliding window patch dimensions (e.g. 256x256)
-        overlap_ratio=0.2,      # Overlap between adjacent patches
+        patch_size=512,         # Sliding window patch dimensions (e.g. 256x256)
+        overlap_ratio=0.25,      # Overlap between adjacent patches
         confidence_threshold=0.5
     )
     

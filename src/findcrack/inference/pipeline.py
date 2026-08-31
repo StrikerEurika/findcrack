@@ -25,10 +25,14 @@ class CrackInferencePipeline:
     Uses the backends package for device-aware inference execution.
     """
 
-    def __init__(self, model=None, device: str = "cuda",
-                 patch_size: int = 512, overlap_ratio: float = 0.2,
-                 confidence_threshold: float = 0.5, use_tta: bool = False,
-                 preprocessor: Optional[Preprocessor] = None, use_clahe: bool = True,
+    def __init__(self, model=None, 
+                 device: str = "cuda",
+                 patch_size: int = 512, 
+                 overlap_ratio: float = 0.25,
+                 confidence_threshold: float = 0.5, 
+                 use_tta: bool = False,
+                 preprocessor: Optional[Preprocessor] = None, 
+                 use_clahe: bool = False,
                  clahe_clip_limit: float = 2.0,
                  overlay_alpha: float = 0.4,
                  overlay_color: tuple = (255, 0, 0),
