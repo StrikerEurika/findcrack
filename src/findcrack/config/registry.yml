@@ -2,6 +2,83 @@ registry_version: "1.0.2"
 active_models: ["Seg_YOLO26n-seg-v1_crack-seg", "Seg_YOLO26n-seg-v3_crack-seg", "UNET_v4_Baseline"]
 
 models:
+
+    SegFormer_v1_MiT_B0:
+        name: "SegFormer v1 MiT-B0"
+        version: "1.0.0"
+        description: "SegFormer v1 for crack segmentation trained on crack-dataset dataset"
+        producer: "HuggingFace Transformers"
+
+        task:
+            specialist: segmentation
+            category: semantic_segmentation
+
+        architecture:
+            library: "transformers"
+            arch: "SegFormer"
+            encoder: "MiT-B0"
+            encoder_weights: null
+            in_channels: 3
+            classes: 1
+
+        input:
+            training_shape: [3, 512, 512]
+            inference_patch_sizes: [256, 512, 1024]
+            dtype: "float32"
+            preprocessing:
+                normalize:
+                    mean: [0.485, 0.456, 0.406]
+                    std: [0.229, 0.224, 0.225]
+
+        training:
+            datasets: ["crack-dataset"]
+            dataset_transparency: "public"
+            dataset_url: null
+            
+        artifacts:
+            framework: "transformers"
+            format: ["onnx"]
+            model_url: https://github.com/StrikerEurika/findcrack/releases/download/models/SegFormer_v1_MiT_B0.onnx
+            local_path: "./checkpoints/releases/SegFormer_v1_MiT_B0.onnx"
+
+    UNET_v4.5_EfficientNetB0:
+        name: "UNET v4.5 EfficientNetB0"
+        version: "1.0.0"
+        description: "UNET v4.5 for crack segmentation trained on crack-dataset dataset"
+        producer: "Segmentation Models Pytorch (smp)"
+
+        task:
+            specialist: segmentation
+            category: semantic_segmentation
+
+        architecture:
+            library: "smp"
+            arch: "UNET"
+            encoder: "efficientnet-b0"
+            encoder_weights: null
+            in_channels: 3
+            classes: 1
+
+        input:
+            training_shape: [3, 512, 512]
+            inference_patch_sizes: [256, 512, 1024]
+            dtype: "float32"
+            preprocessing:
+                normalize:
+                    mean: [0.485, 0.456, 0.406]
+                    std: [0.229, 0.224, 0.225]
+
+        training:
+            datasets: ["crack-dataset"]
+            dataset_transparency: "public"
+            dataset_url: null
+
+        artifacts:
+            framework: "smp"
+            format: ["onnx"]
+            model_url: https://github.com/StrikerEurika/findcrack/releases/download/models/UNET_v4.5_Efficientnet_B0.onnx
+            local_path: "./checkpoints/releases/UNET_v4.5_Efficientnet_B0.onnx"
+
     UNET_v4_Baseline:
         name: "UNET v4 Baseline"
         version: "1.0.0"
