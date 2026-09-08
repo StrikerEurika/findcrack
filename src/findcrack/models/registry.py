@@ -341,7 +341,19 @@ def load_model(
             available_variants = list(MODEL_REGISTRY.keys())
             raise ValueError(f"Unknown variant '{variant}'. Available: {available_variants}")
         config = MODEL_REGISTRY[variant]
-        backend = config.get("backend", "pytorch")
+        if backend is None:
+            backend = config.get("backend", "pytorch")
+
+    if backend not in ("pytorch", "onnx"):
+        formats = config.get("raw_config", {}).get("artifacts", {}).get("format", []) if config else []
+        if isinstance(formats, str):
+            formats = [formats]
+        url = str(config.get("url", "") or "") if config else ""
+        local_p = str(config.get("local_path", "") or "") if config else ""
+        if "onnx" in formats or url.endswith(".onnx") or local_p.endswith(".onnx"):
+            backend = "onnx"
+        else:
+            backend = "pytorch"
 
     # Try resolving to a local checkpoint weight file if flagged
     if use_local:

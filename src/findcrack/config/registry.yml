@@ -1,5 +1,5 @@
 registry_version: "1.0.2"
-active_models: ["Seg_YOLO26n-seg-v1_crack-seg", "Seg_YOLO26n-seg-v3_crack-seg", "UNET_v4_Baseline"]
+active_models: ["Seg_YOLO26n-seg-v1_crack-seg", "Seg_YOLO26n-seg-v3_crack-seg", "UNET_v4_Baseline", "SegFormer_v1_MiT_B0", "UNET_v4.5_EfficientNetB0"]
 
 models:
 
