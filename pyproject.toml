@@ -38,21 +38,8 @@ Repository = "https://github.com/StrikerEurika/findcrack"
 Releases = "https://github.com/StrikerEurika/findcrack/releases"
 
 [project.optional-dependencies]
-standard = [
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "torchvision>=0.15.0",
-    "segmentation-models-pytorch>=0.3.0",
-]
-
 gpu = [
-    "torch>=2.0.0",
-    "torchvision>=0.15.0",
-]
-
-cuda-runtime = [
-    "nvidia-cublas-cu12",
-    "nvidia-cudnn-cu12",
+    "onnxruntime-gpu>=1.20.0,<1.27.0",
 ]
 
 [dependency-groups]
@@ -69,13 +56,3 @@ findcrack = ["**/*.yml", "**/*.yaml"]
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
-
-[[tool.uv.index]]
-name = "pytorch"
-url = "https://download.pytorch.org/whl/cu124"
-explicit = true
-
-[tool.uv.sources]
-torch = { index = "pytorch" }
-torchvision = { index = "pytorch" }
-torchaudio = { index = "pytorch" }

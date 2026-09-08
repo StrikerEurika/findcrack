@@ -4,19 +4,11 @@ from typing import Tuple, List, Optional, Union
 import albumentations as A
 from .clahe import apply_lab_clahe
 
-try:
-    import torch
-    from albumentations.pytorch import ToTensorV2
-    HAS_TORCH = True
-except ImportError:
-    HAS_TORCH = False
-    torch = None
-    ToTensorV2 = None
 
 class Preprocessor:
     """
     Standard preprocessing pipeline class.
-    Handles optional LAB-CLAHE contrast enhancement and Albumentations normalization/tensorization.
+    Handles optional LAB-CLAHE contrast enhancement and Albumentations normalization.
     """
     def __init__(
         self,
@@ -52,9 +44,6 @@ class Preprocessor:
         elif self.normalize_mode == "scale_only":
             transforms.append(A.Normalize(mean=(0.0, 0.0, 0.0), std=(1.0, 1.0, 1.0)))
 
-        if self.normalize_mode != "none" and HAS_TORCH:
-            transforms.append(ToTensorV2())
-
         self.transform = A.Compose(transforms)
 
     def enhance_contrast(self, image: np.ndarray) -> np.ndarray:
@@ -66,9 +55,9 @@ class Preprocessor:
             return apply_lab_clahe(image, clip_limit=self.clip_limit, tile_grid_size=self.tile_grid_size)
         return image
 
-    def transform_patch(self, patch: np.ndarray) -> torch.Tensor | np.ndarray:
+    def transform_patch(self, patch: np.ndarray) -> np.ndarray:
         """
-        Applies Albumentations normalization and tensorization to a patch or image.
+        Applies Albumentations normalization to a patch or image.
         """
         transformed = self.transform(image=patch)
         img = transformed["image"]
@@ -80,17 +69,17 @@ class Preprocessor:
                     img = np.transpose(img, (2, 0, 1))
             return img
 
-        if not HAS_TORCH:
+        if isinstance(img, np.ndarray):
             img = np.transpose(img, (2, 0, 1))
         return img
 
-    def __call__(self, image: np.ndarray) -> Tuple[np.ndarray, torch.Tensor | np.ndarray]:
+    def __call__(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
         Performs full preprocessing: contrast enhancement followed by transform.
         Returns:
             - enhanced_image: Contrast-enhanced RGB image (numpy array).
-            - tensor/array: The normalized PyTorch tensor or NumPy array (CHW format).
+            - array: The normalized NumPy array (CHW format).
         """
         enhanced = self.enhance_contrast(image)
-        tensor = self.transform_patch(enhanced)
-        return enhanced, tensor
+        array = self.transform_patch(enhanced)
+        return enhanced, array

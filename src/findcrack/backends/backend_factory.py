@@ -1,14 +1,9 @@
 from __future__ import annotations
-from typing import Any, Union
+from typing import Any
 import os
 
 from .base import Backend
 from .onnx_cpu_backend import ONNXCPUBackend
-
-try:
-    from .pytorch_backend import PyTorchBackend
-except ImportError:
-    PyTorchBackend = None
 
 
 def normalize_device(device: str) -> str:
@@ -39,28 +34,15 @@ def _ort_cuda_available() -> bool:
 
 def get_backend(
     model_path: str = None,
-    pytorch_model: Any = None,
     device: str = "cuda",
     backend: str = None,
 ) -> Backend:
     """Factory that selects the optimal backend for the given device and model."""
 
-    if pytorch_model is not None:
-        if PyTorchBackend is None:
-            raise ImportError(
-                "PyTorch is required for PyTorch backend inference. "
-                "Install it with: uv add torch"
-            )
-        return PyTorchBackend(pytorch_model, device)
-
-    if backend == "pytorch":
-        raise ValueError("pytorch backend requires a model instance")
-
     normalized = normalize_device(device)
 
     if backend == "onnx" or (model_path and model_path.lower().endswith(".onnx")):
-        # ONNX resource selection is driven by onnxruntime providers,
-        # independent of whether PyTorch itself sees CUDA.
+        # ONNX resource selection is driven by onnxruntime providers
         if normalized != "cpu" and _ort_cuda_available():
             try:
                 from .onnx_cuda_backend import ONNXCUDABackend

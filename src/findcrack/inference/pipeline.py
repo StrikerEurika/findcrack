@@ -6,23 +6,16 @@ from pathlib import Path
 from PIL import Image
 from typing import Optional
 
-try:
-    import torch
-    HAS_TORCH = True
-except ImportError:
-    HAS_TORCH = False
-    torch = None
-
 from ..preprocess import Preprocessor, PatchExtractor, ImageScaler
 from ..postprocess import PatchBlender
-from .tta import tta_forward, tta_forward_np
+from .tta import tta_forward_np
 from ..utils import sigmoid_np
 
 
 class CrackInferencePipeline:
     """
     Pipeline for running inference on large images.
-    Uses the backends package for device-aware inference execution.
+    Uses ONNX Runtime backends for device-aware inference execution.
     """
 
     def __init__(self, model=None, 
@@ -123,26 +116,7 @@ class CrackInferencePipeline:
             from findcrack.backends import get_backend
             return get_backend(model_path=model, device=device, backend="onnx")
 
-        if HAS_TORCH and isinstance(model, torch.nn.Module):
-            from findcrack.backends import PyTorchBackend
-            return PyTorchBackend(model, device)
-
         return model
-
-    @classmethod
-    def from_checkpoint(cls, model_class, checkpoint_path: str, **kwargs):
-        """
-        Helper function to load model from a checkpoint.
-        """
-        if not HAS_TORCH:
-            raise ImportError(
-                "Loading a model from a checkpoint requires PyTorch. Please install PyTorch or "
-                "install findcrack with standard extras: pip install findcrack[standard]"
-            )
-        model = model_class(n_channels=3, n_classes=1)
-        state_dict = torch.load(checkpoint_path, map_location="cpu")
-        model.load_state_dict(state_dict)
-        return cls(model, **kwargs)
 
     @classmethod
     def from_pretrained(cls, variant: str, device: str = "cuda", local_checkpoint: bool = False, **kwargs):
@@ -157,35 +131,16 @@ class CrackInferencePipeline:
         """
         Convert patch data to the format expected by the backend.
         """
-        is_pytorch = getattr(self.backend, "backend_type", None) == "pytorch"
+        patch_np = np.asarray(patch_data, dtype=np.float32)
+        return np.expand_dims(patch_np, axis=0), False
 
-        if is_pytorch and HAS_TORCH and isinstance(patch_data, torch.Tensor):
-            if not isinstance(patch_data, torch.Tensor):
-                patch_tensor = torch.from_numpy(patch_data).float()
-            else:
-                patch_tensor = patch_data
-            return patch_tensor.to(self.device), True
-        else:
-            if HAS_TORCH and isinstance(patch_data, torch.Tensor):
-                patch_np = patch_data.cpu().numpy()
-            else:
-                patch_np = patch_data
-            return np.expand_dims(patch_np.astype(np.float32), axis=0), False
-
-    def _run_inference(self, input_data, is_torch: bool):
+    def _run_inference(self, input_data):
         """Run backend inference and return probability map as numpy."""
         if self.use_tta:
-            if is_torch:
-                pred = tta_forward(self.backend.model, input_data.squeeze(0))
-                return pred.cpu().numpy()
-            else:
-                return tta_forward_np(self.backend, input_data.squeeze(0))
+            return tta_forward_np(self.backend, input_data.squeeze(0))
         else:
             raw_out = self.backend(input_data)
-            if is_torch:
-                return torch.sigmoid(raw_out).squeeze().cpu().numpy()
-            else:
-                return np.squeeze(sigmoid_np(raw_out))
+            return np.squeeze(sigmoid_np(raw_out))
 
     def predict(self, image_input: str | Path | np.ndarray | Image.Image) -> dict:
         """
@@ -227,14 +182,12 @@ class CrackInferencePipeline:
         else:
             ph, pw = self.patch_size
 
-        is_pytorch_backend = getattr(self.backend, "backend_type", None) == "pytorch"
-
         if proc_height <= ph and proc_width <= pw:
             preprocessed_image = self.preprocessor.enhance_contrast(processed_image)
             patch_data = self.preprocessor.transform_patch(preprocessed_image)
 
-            input_data, is_torch = self._prepare_input(patch_data, batch_size=1)
-            confidence_map = self._run_inference(input_data, is_torch=is_pytorch_backend and is_torch)
+            input_data, _ = self._prepare_input(patch_data, batch_size=1)
+            confidence_map = self._run_inference(input_data)
 
             if confidence_map.shape != (proc_height, proc_width):
                 confidence_map = cv2.resize(confidence_map, (proc_width, proc_height), interpolation=cv2.INTER_LINEAR)
@@ -260,8 +213,8 @@ class CrackInferencePipeline:
                 patch_data = self.preprocessor.transform_patch(patch_rgb)
 
                 if actual_batch_size == 1:
-                    input_data, is_torch = self._prepare_input(patch_data, batch_size=1)
-                    pred_prob_np = self._run_inference(input_data, is_torch=is_pytorch_backend and is_torch)
+                    input_data, _ = self._prepare_input(patch_data, batch_size=1)
+                    pred_prob_np = self._run_inference(input_data)
                     blender.add(pred_prob_np, coordinates)
                 else:
                     batch_patches.append(patch_data)
@@ -316,34 +269,13 @@ class CrackInferencePipeline:
         }
 
     def _process_batch(self, batch_patches, batch_coords, blender):
-        is_pytorch_backend = getattr(self.backend, "backend_type", None) == "pytorch"
+        arrays = []
+        for p in batch_patches:
+            arrays.append(np.asarray(p, dtype=np.float32))
+        batch_np = np.stack(arrays).astype(np.float32)
+        raw_out = self.backend(batch_np)
+        pred_probs_np = sigmoid_np(raw_out)
 
-        if is_pytorch_backend and HAS_TORCH:
-            tensors = []
-            for p in batch_patches:
-                if not isinstance(p, torch.Tensor):
-                    tensors.append(torch.from_numpy(p).float())
-                else:
-                    tensors.append(p)
-            batch_tensor = torch.stack(tensors).to(self.device)
-            with torch.no_grad():
-                logits = self.backend(batch_tensor)
-            pred_probs = torch.sigmoid(logits)
-
-            for i, coordinates in enumerate(batch_coords):
-                pred_prob_np = pred_probs[i, 0].cpu().numpy()
-                blender.add(pred_prob_np, coordinates)
-        else:
-            arrays = []
-            for p in batch_patches:
-                if HAS_TORCH and isinstance(p, torch.Tensor):
-                    arrays.append(p.cpu().numpy())
-                else:
-                    arrays.append(p)
-            batch_np = np.stack(arrays).astype(np.float32)
-            raw_out = self.backend(batch_np)
-            pred_probs_np = sigmoid_np(raw_out)
-
-            for i, coordinates in enumerate(batch_coords):
-                pred_prob_np = pred_probs_np[i, 0]
-                blender.add(pred_prob_np, coordinates)
+        for i, coordinates in enumerate(batch_coords):
+            pred_prob_np = pred_probs_np[i, 0]
+            blender.add(pred_prob_np, coordinates)

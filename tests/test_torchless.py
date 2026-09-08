@@ -7,8 +7,9 @@ class TestTorchless(unittest.TestCase):
     def test_torchless_execution(self):
         script = """
 import sys
+import os
 
-# Raise ImportError for torch and related libraries
+# Block torch imports
 class BlockedImportFinder:
     def find_spec(self, fullname, path, target=None):
         if fullname in ("torch", "torchvision", "torchaudio") or fullname.startswith(("torch.", "torchvision.", "torchaudio.")):
@@ -27,26 +28,12 @@ except ImportError:
 
 # Import findcrack components
 try:
-    from findcrack import Preprocessor, CrackInferencePipeline, load_model, list_models, UNet
+    from findcrack import Preprocessor, CrackInferencePipeline, load_model, list_models
     from findcrack.models.onnx_wrapper import ONNXModelWrapper
     from findcrack.inference.tta import tta_forward_np
 except Exception as e:
     print(f"FAILED_IMPORT: {e}")
     sys.exit(1)
-
-# Check HAS_TORCH is False
-from findcrack.preprocess.preprocessor import HAS_TORCH
-if HAS_TORCH:
-    print("FAILED_HAS_TORCH_IS_TRUE")
-    sys.exit(1)
-
-# Test UNet raises ImportError on instantiation
-try:
-    UNet()
-    print("FAILED_UNET_NO_ERROR")
-    sys.exit(1)
-except ImportError:
-    pass
 
 # Test Preprocessor on NumPy
 import numpy as np
@@ -63,14 +50,12 @@ if transformed.shape != (3, 100, 100):
 
 # Test dummy ONNX Model and pipeline with TTA
 def dummy_model(x):
-    # input is (B, C, H, W). returns (B, 1, H, W)
     return np.zeros((x.shape[0], 1, x.shape[2], x.shape[3]))
 
 pipeline = CrackInferencePipeline(dummy_model, device="cpu", patch_size=50, use_tta=True)
 
 # Create a temp file and predict
 import tempfile
-import os
 from PIL import Image
 
 with tempfile.TemporaryDirectory() as tmpdir:
@@ -91,13 +76,11 @@ with tempfile.TemporaryDirectory() as tmpdir:
 print("SUCCESS")
 """
         env = os.environ.copy()
-        # Ensure PYTHONPATH includes our src directory
         src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
         env["PYTHONPATH"] = src_path + os.pathsep + env.get("PYTHONPATH", "")
         
         result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env)
         
-        # Log outputs for debugging
         if result.returncode != 0:
             print("STDOUT:", result.stdout)
             print("STDERR:", result.stderr)

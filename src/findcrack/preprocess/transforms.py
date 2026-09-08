@@ -1,11 +1,7 @@
+import numpy as np
 import albumentations as A
 from typing import Tuple
 
-try:
-    from albumentations.pytorch import ToTensorV2
-    HAS_TORCH = True
-except ImportError:
-    HAS_TORCH = False
 
 def get_inference_transform(
     mean: Tuple[float, float, float] = (0.485, 0.456, 0.406),
@@ -13,14 +9,12 @@ def get_inference_transform(
 ):
     """
     standard ImageNet normalization required by most pretrained models.
+    Returns a callable that applies normalization and converts to CHW numpy array.
     """
-    if not HAS_TORCH:
-        raise ImportError(
-            "get_inference_transform requires PyTorch. Please install PyTorch or "
-            "install findcrack with standard extras: pip install findcrack[standard]"
-        )
-    return A.Compose([
+    transform = A.Compose([
         A.Normalize(mean=mean, std=std),
-        ToTensorV2(),
     ])
-
+    def _apply(image):
+        out = transform(image=image)["image"]
+        return np.transpose(out, (2, 0, 1))
+    return _apply

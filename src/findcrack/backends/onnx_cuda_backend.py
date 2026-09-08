@@ -6,7 +6,7 @@ _DLL_DIRS_REGISTERED = False
 
 
 def _register_cuda_dll_dirs():
-    """Register CUDA runtime DLL dirs without requiring PyTorch."""
+    """Register CUDA runtime DLL dirs."""
     global _DLL_DIRS_REGISTERED
     if _DLL_DIRS_REGISTERED:
         return
@@ -27,19 +27,6 @@ def _register_cuda_dll_dirs():
         candidate_dirs.extend(sp.glob("nvidia" + os.sep + "*" + os.sep + "lib"))
 
     # 2. System CUDA toolkit
-    cuda_base = Path(os.environ.get("CUDA_PATH", ""))
-    if cuda_base.is_dir():
-        candidate_dirs.append(cuda_base / "bin")
-        candidate_dirs.append(cuda_base / "lib" / "x64")
-
-    # 3. Fallback: site-packages/torch/lib (no import, just filesystem scan)
-    for site_pkg in sys.path:
-        sp = Path(site_pkg)
-        if not sp.is_dir():
-            continue
-        torch_lib = sp / "torch" / "lib"
-        if torch_lib.is_dir():
-            candidate_dirs.append(torch_lib)
 
     for d in candidate_dirs:
         if not d.is_dir():

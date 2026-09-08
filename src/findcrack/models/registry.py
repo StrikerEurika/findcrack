@@ -1,16 +1,9 @@
 from __future__ import annotations
 import os
 import hashlib
+import urllib.request
 from pathlib import Path
 from typing import Any, Optional
-
-try:
-    import torch
-    from torch.hub import get_dir, download_url_to_file
-    HAS_TORCH = True
-except ImportError:
-    HAS_TORCH = False
-    torch = None
 
 from .onnx_wrapper import ONNXModelWrapper
 
@@ -29,11 +22,6 @@ def _normalize_device(device: str) -> str:
 def load_registry() -> dict:
     """
     Loads and normalizes the model registry from config/registry.yml.
-
-    The registry is the single source of truth for every model: its
-    architecture, instantiation kwargs, backend, remote release URL and the
-    local checkpoint path (relative to the checkpoints directory). JSON is no
-    longer supported.
     """
     yaml_path = Path(__file__).resolve().parent.parent / "config" / "registry.yml"
     if not yaml_path.exists():
@@ -48,7 +36,6 @@ def load_registry() -> dict:
         raw_models = data.get("models", {})
         normalized = {}
         for key, m in raw_models.items():
-            # Standardize architecture type and kwargs
             arch_cfg = m.get("architecture", {})
             if isinstance(arch_cfg, dict):
                 arch = arch_cfg.get("type")
@@ -57,9 +44,8 @@ def load_registry() -> dict:
                 arch = arch_cfg
                 kwargs = m.get("kwargs", {})
 
-            # Standardize backend, URL, local path and checksum from artifacts
             artifacts = m.get("artifacts", {})
-            backend = artifacts.get("framework", m.get("backend", "pytorch"))
+            backend = artifacts.get("framework", m.get("backend", "onnx"))
             if backend == "ultralytics":
                 backend = "onnx"
             url = artifacts.get("model_url", m.get("url"))
@@ -91,7 +77,6 @@ def load_registry() -> dict:
         return {}
 
 
-# Load model registry detailing architectures, default arguments, remote URLs, hashes, and backend type.
 MODEL_REGISTRY = load_registry()
 
 
@@ -103,17 +88,14 @@ def get_checkpoints_dir() -> Path:
         if p.is_dir():
             return p
 
-    # 1. Check relative to root of the repo (climbing 4 levels from registry.py)
     try_root = Path(__file__).resolve().parents[3] / "checkpoints"
     if try_root.is_dir():
         return try_root
         
-    # 2. Check relative to the package src directory
     try_pkg = Path(__file__).resolve().parents[2] / "checkpoints"
     if try_pkg.is_dir():
         return try_pkg
 
-    # 3. Check current working directory
     try_cwd = Path.cwd() / "checkpoints"
     if try_cwd.is_dir():
         return try_cwd
@@ -121,37 +103,29 @@ def get_checkpoints_dir() -> Path:
     return try_root
 
 
-def resolve_local_checkpoint(variant: str, backend: str = "pytorch") -> Optional[Path]:
+def resolve_local_checkpoint(variant: str, backend: str = "onnx") -> Optional[Path]:
     """
     Attempts to find a local checkpoint weight file for the given variant.
-    Resolution order:
-    1. The explicit `local_path` declared for this variant in the registry.
-    2. A folder / file whose name matches the variant (case-insensitive).
-    3. Any weight file containing the variant name as a substring.
-    4. A fuzzy parts-based match on the variant name.
     """
     checkpoints_dir = get_checkpoints_dir()
     if not checkpoints_dir.is_dir():
         return None
 
-    backend_exts = (".onnx",) if backend == "onnx" else (".pth", ".pt")
+    backend_exts = (".onnx",)
     variant_norm = variant.replace("-", "_").lower()
     variant_parts = [p for p in variant_norm.split("_") if p]
 
-    # 1. Registry-declared local path (deterministic, preferred)
     config = MODEL_REGISTRY.get(variant, {})
     local_rel = config.get("local_path")
     if local_rel:
         declared = checkpoints_dir / local_rel
         if declared.is_file():
             return declared
-        # Allow the declared filename to live anywhere under the checkpoints dir
         fname = Path(local_rel).name
         matches = [p for p in checkpoints_dir.glob(f"**/{fname}") if p.is_file()]
         if matches:
             return matches[0]
 
-    # 2. Folder matching the variant name -> pick a backend-appropriate weight
     for p in checkpoints_dir.rglob("*"):
         if p.is_dir() and p.name.lower() == variant.lower():
             weights = [w for w in p.iterdir()
@@ -160,18 +134,15 @@ def resolve_local_checkpoint(variant: str, backend: str = "pytorch") -> Optional
                 best = [w for w in weights if "best" in w.name.lower()]
                 return (best or weights)[0]
 
-    # 3. File whose stem matches the variant name (case-insensitive)
     for p in checkpoints_dir.rglob("*"):
         if p.is_file() and p.stem.replace("-", "_").lower() == variant_norm:
             if p.suffix.lower() in backend_exts:
                 return p
 
-    # 4. File containing the variant name as a substring
     for p in checkpoints_dir.rglob("*"):
         if p.is_file() and variant.lower() in p.name.lower() and p.suffix.lower() in backend_exts:
             return p
 
-    # 5. Fuzzy parts-based match on the file path
     best_match, best_score = None, 0
     for p in checkpoints_dir.rglob("*"):
         if not p.is_file() or p.suffix.lower() not in backend_exts:
@@ -198,11 +169,8 @@ def verify_sha256(filepath: str, expected_hash: str) -> bool:
 
 def get_cache_dir() -> str:
     """Returns the package's weight caching directory."""
-    if HAS_TORCH:
-        hub_directory = get_dir()
-    else:
-        hub_directory = os.path.expanduser(os.path.join("~", ".cache", "torch", "hub"))
-    model_directory = os.path.join(hub_directory, 'checkpoints', 'findcrack')
+    hub_directory = os.path.expanduser(os.path.join("~", ".cache", "findcrack"))
+    model_directory = os.path.join(hub_directory, 'checkpoints')
     os.makedirs(model_directory, exist_ok=True)
     return model_directory
 
@@ -211,13 +179,9 @@ def download_weight_file(url: str, cached_file: str, expected_hash: str = None):
     """Downloads remote weight file and verifies its checksum."""
     print(f"Downloading weights from {url}... (This is a one-time download)")
     try:
-        if HAS_TORCH:
-            download_url_to_file(url, cached_file, progress=True)
-        else:
-            import urllib.request
-            print(f"Downloading {url} to {cached_file}...")
-            urllib.request.urlretrieve(url, cached_file)
-            print("Download completed.")
+        print(f"Downloading {url} to {cached_file}...")
+        urllib.request.urlretrieve(url, cached_file)
+        print("Download completed.")
     except Exception as e:
         raise IOError(f"Failed to download weight file from {url}. Error: {e}")
         
@@ -231,67 +195,23 @@ def load_model(
     variant: str,
     device: str = "cpu",
     force_download: bool = False,
-    architecture = None,
-    kwargs: dict = None,
     backend: str = None,
     sha256: str = None,
     local_checkpoint: bool = False
 ) -> Any:
     """
-    Dynamic model loader. Supports 4 main scenarios:
-
-    1. Auto-download & run (no setup):
-        model = load_model("ModelName")
-        # Downloads and caches model from registry if missing.
-
-    2. Use local or saved model:
-        model = load_model("ModelName", local_checkpoint=True)
-        # Looks for model file at path in registry.yml; no download. You can also set env var FINDCRACK_LOCAL_CHECKPOINT=1.
-
-    3. Manual checkpoint (advanced):
-        # Download the model yourself, place at path in registry.yml, then call as above with local_checkpoint=True.
-
-    4. Load from a local file path (no registration required):
-        model = load_model("/path/to/model.pth", architecture=UNet, backend="pytorch", kwargs={...})
-        # Loads a PyTorch checkpoint or ONNX model directly from the given path.
-
-    Errors and fallback:
-        - If no local file and no download URL: error with message showing required path.
-        - If using local_checkpoint, falls back to download/cached if local missing, unless no URL is available.
-
-    Supports registry-based and runtime custom models (see `register_model`).
-
-
-    Source-selection policy (controlled by `local_checkpoint`):
-      * local_checkpoint=True  -> load weights from the local `checkpoints/`
-        folder (resolved via the registry's `local_path`, then fuzzy lookup).
-        Use this while developing the package with weights stored locally.
-      * local_checkpoint=False -> download weights from the model's release URL
-        and cache them on disk. This is the default for end users / other
-        developers trying the released models.
-
-    The same behavior can be forced via the FINDCRACK_LOCAL_CHECKPOINT
-    environment variable (set to 1/true/yes).
+    Dynamic ONNX model loader.
 
     Args:
-        variant: Registry name (e.g. 'Seg_UNET_CFD_actual_v1'), a direct
-            remote URL (e.g. 'https://.../model.pth'), or a local file path
-            (e.g. '/path/to/model.pth' or 'C:\\path\\to\\model.pt'). When a
-            local path is provided, the model is loaded directly without
-            registry lookup or download.
-        device: Target device for execution ('cpu', 'cuda', 'mps').
+        variant: Registry name (e.g. 'ModelName'), a remote URL, or a local file path.
+        device: Target device for execution ('cpu', 'cuda').
         force_download: If True, re-download weights ignoring any cache.
-        architecture: Model class (e.g. UNet) - required when loading PyTorch
-            weights from a raw URL or a local file path.
-        kwargs: Instantiation kwargs for the architecture (used for URL loads).
-        backend: Backend ('pytorch' or 'onnx'); inferred from URL/extension if omitted.
-        sha256: Optional SHA256 checksum to verify an downloaded file.
-        local_checkpoint: If True, prefer the local checkpoints folder; otherwise
-            download from the registry's release URL.
+        backend: Backend framework ('onnx'); inferred from extension if omitted.
+        sha256: Optional SHA256 checksum to verify downloaded file.
+        local_checkpoint: If True, prefer the local checkpoints folder.
     """
     is_url = variant.startswith("http://") or variant.startswith("https://")
 
-    # Flag (or env) decides whether to look locally first or download.
     use_local = (not is_url) and (
         local_checkpoint
         or os.environ.get("FINDCRACK_LOCAL_CHECKPOINT", "0").lower() in ("1", "true", "yes")
@@ -301,17 +221,9 @@ def load_model(
     if is_url:
         url = variant
         if backend is None:
-            backend = "onnx" if url.lower().endswith(".onnx") else "pytorch"
-
-        if backend == "pytorch" and architecture is None:
-            raise ValueError(
-                "You must specify the 'architecture' class (e.g., UNet, DeepCrack) "
-                "when loading a PyTorch model directly from a URL."
-            )
+            backend = "onnx" if url.lower().endswith(".onnx") else "onnx"
 
         config = {
-            "architecture": architecture,
-            "kwargs": kwargs or {},
             "backend": backend,
             "url": url,
             "sha256": sha256
@@ -319,15 +231,8 @@ def load_model(
     elif Path(variant).is_file() or Path(variant).is_absolute():
         _lp = Path(variant)
         if backend is None:
-            backend = "onnx" if variant.lower().endswith(".onnx") else "pytorch"
-        if backend == "pytorch" and architecture is None:
-            raise ValueError(
-                "You must specify the 'architecture' class (e.g., UNet, DeepCrack) "
-                "when loading a PyTorch model from a local path."
-            )
+            backend = "onnx" if variant.lower().endswith(".onnx") else "onnx"
         config = {
-            "architecture": architecture,
-            "kwargs": kwargs or {},
             "backend": backend,
             "url": None,
             "sha256": sha256,
@@ -342,33 +247,22 @@ def load_model(
             raise ValueError(f"Unknown variant '{variant}'. Available: {available_variants}")
         config = MODEL_REGISTRY[variant]
         if backend is None:
-            backend = config.get("backend", "pytorch")
+            backend = config.get("backend", "onnx")
 
-    if backend not in ("pytorch", "onnx"):
-        formats = config.get("raw_config", {}).get("artifacts", {}).get("format", []) if config else []
-        if isinstance(formats, str):
-            formats = [formats]
-        url = str(config.get("url", "") or "") if config else ""
-        local_p = str(config.get("local_path", "") or "") if config else ""
-        if "onnx" in formats or url.endswith(".onnx") or local_p.endswith(".onnx"):
-            backend = "onnx"
-        else:
-            backend = "pytorch"
+    if backend != "onnx":
+        backend = "onnx"
 
-    # Try resolving to a local checkpoint weight file if flagged
     if use_local:
         local_path = resolve_local_checkpoint(variant, backend)
         if local_path:
             print(f"Using local checkpoint weight file: {local_path}")
             cached_file = str(local_path)
         else:
-            print(f"Warning: Local checkpoint for '{variant}' not found in checkpoints folder as expected by registry.yml. If you want to use a local checkpoint, download weights and place them here: {get_checkpoints_dir() / (MODEL_REGISTRY.get(variant, {}).get('local_path') or '')}\nFalling back to cache/remote URL (if configured).")
+            print(f"Warning: Local checkpoint for '{variant}' not found in checkpoints folder. Falling back to cache/remote URL.")
             
-    # Fallback to cache/remote download if not found locally or if use_local is False
     if cached_file is None:
         if not config.get("url"):
-            raise ValueError(f"No remote URL configured for variant '{variant}', and no local checkpoint was found.\n"
-                             f"To use this model, manually download/checkpoint and place at: {get_checkpoints_dir() / (MODEL_REGISTRY.get(variant, {}).get('local_path') or '')}")
+            raise ValueError(f"No remote URL configured for variant '{variant}', and no local checkpoint was found.")
             
         filename = os.path.basename(config["url"])
         cached_file = os.path.join(get_cache_dir(), filename)
@@ -382,75 +276,20 @@ def load_model(
         if not os.path.exists(cached_file):
             download_weight_file(config["url"], cached_file, config.get("sha256"))
         
-    # 3. Instantiate and load weights based on backend type
-    if backend == "pytorch":
-        if not HAS_TORCH:
-            raise ImportError(
-                "Loading a PyTorch backend model requires PyTorch. Please install PyTorch or "
-                "install findcrack with standard extras: pip install findcrack[standard]"
-            )
-        # Safe device selection
-        target_device = device
-        normalized = _normalize_device(device)
-        if normalized == "cuda" and not torch.cuda.is_available():
-            print("Warning: CUDA is not available. Falling back to CPU.")
-            target_device = "cpu"
-        elif normalized == "mps" and not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
-            print("Warning: MPS is not available. Falling back to CPU.")
-            target_device = "cpu"
-            
-        arch_class = config["architecture"]
-        # Generalized SMP factory dispatch
-        raw_cfg = config.get("raw_config", {})
-        producer = raw_cfg.get("producer", "").lower() if raw_cfg else ""
-        if producer.startswith("segmentation models pytorch") or producer == "smp":
-            from .smp import create_smp_model
-            arch_string = raw_cfg.get("architecture", {}).get("arch", arch_class)
-            model = create_smp_model(arch_string, **config.get("kwargs", {}))
-        elif isinstance(arch_class, str):
-            if arch_class == "UNet":
-                print("WARNING: Fallback to legacy .unet UNet. Registry configuration likely missing or incorrect. All new Unet usage must go through SMP.")
-                from .unet import UNet
-                model = UNet(**config.get("kwargs", {}))
-            else:
-                raise ValueError(f"Unknown PyTorch architecture class name: {arch_class}")
-        else:
-            model = arch_class(**config.get("kwargs", {}))
-
-        # Load weights (tolerant of both raw state_dict files and wrapped
-        # training checkpoints that embed the weights under a known key).
-        checkpoint = torch.load(cached_file, map_location=target_device)
-        if isinstance(checkpoint, dict):
-            for key in ("model_state_dict", "state_dict", "model"):
-                if key in checkpoint:
-                    checkpoint = checkpoint[key]
-                    break
-        model.load_state_dict(checkpoint)
-        return model.to(target_device).eval()
-        
-    elif backend == "onnx":
-        model = ONNXModelWrapper(cached_file, device=device)
-        return model
-        
-    else:
-        raise ValueError(f"Unsupported backend: {backend}")
+    model = ONNXModelWrapper(cached_file, device=device)
+    return model
 
 
 def get_model_status_map() -> dict:
     """
     Returns a mapping: variant -> {display_name, status, backend, url, local_path, sha256}.
-    Status values:
-      - 'available' if installed and usable
-      - 'downloadable' if not installed but URL is provided
-      - 'unavailable' otherwise
     """
     result = {}
     for key, entry in MODEL_REGISTRY.items():
-        backend = entry.get("backend", "pytorch")
+        backend = entry.get("backend", "onnx")
         local_path = entry.get("local_path")
         url = entry.get("url")
         sha256 = entry.get("sha256")
-        # Friendly name: fallback to key
         display_name = entry.get("friendly_name") or key
         installed = False
         resolved_path = None
@@ -476,15 +315,17 @@ def get_model_status_map() -> dict:
         }
     return result
 
+
 def list_models() -> list:
     """
     Returns a list of all available pre-trained model variants in the registry.
     """
     return list(MODEL_REGISTRY.keys())
 
+
 def print_model_paths():
     """
-    Print expected paths for all models (for users who want to manually place checkpoints).
+    Print expected paths for all models.
     """
     for name, cfg in MODEL_REGISTRY.items():
         print(f"Model: {name}")
@@ -494,35 +335,25 @@ def print_model_paths():
         print()
 
 
-
 def register_model(
     name: str,
     url: str,
-    architecture = None,
-    kwargs: dict = None,
-    backend: str = "pytorch",
+    backend: str = "onnx",
     sha256: str = None
 ):
     """
-    Dynamically registers a custom model variant at runtime.
-    This allows users to define custom remote models and use the standard load_model API.
+    Dynamically registers a custom ONNX model variant at runtime.
     
     Args:
         name: Name/identifier of the variant.
         url: Remote URL to download the model weights/file from.
-        architecture: The PyTorch class/type of the model (not required for ONNX).
-        kwargs: Keyword arguments for instantiating the model class.
-        backend: Backend framework, either 'pytorch' or 'onnx'.
+        backend: Backend framework ('onnx').
         sha256: Optional SHA256 checksum to verify the downloaded file.
     """
-    if backend not in ("pytorch", "onnx"):
-        raise ValueError("backend must be 'pytorch' or 'onnx'")
-    if backend == "pytorch" and architecture is None:
-        raise ValueError("architecture class must be provided for PyTorch backend")
+    if backend != "onnx":
+        raise ValueError("backend must be 'onnx'")
         
     MODEL_REGISTRY[name] = {
-        "architecture": architecture,
-        "kwargs": kwargs or {},
         "backend": backend,
         "url": url,
         "sha256": sha256

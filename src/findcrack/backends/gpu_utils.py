@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 def get_backend_info(backend: Any) -> Dict[str, Any]:
     """Return a summary dict of backend capabilities and active providers.
 
-    Works with any findcrack backend instance (ONNX CPU/CUDA, PyTorch).
+    Works with any findcrack backend instance (ONNX CPU/CUDA).
     """
     info: Dict[str, Any] = {
         "backend_type": getattr(backend, "backend_type", "unknown"),

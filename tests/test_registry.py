@@ -5,143 +5,44 @@ from pathlib import Path
 from findcrack import load_model, list_models, CrackInferencePipeline
 from findcrack.models.registry import resolve_local_checkpoint, get_checkpoints_dir, print_model_paths
 
-try:
-    import torch
-    HAS_TORCH = True
-except ImportError:
-    HAS_TORCH = False
-
 
 class TestModelZoo(unittest.TestCase):
     def setUp(self):
         from findcrack.models.registry import MODEL_REGISTRY
-        if "Seg_Unet-v1_CFD" not in MODEL_REGISTRY:
-            MODEL_REGISTRY["Seg_Unet-v1_CFD"] = {
-                "architecture": "Unet",
-                "kwargs": {
-                    "encoder_name": "resnet34",
-                    "encoder_weights": None,
-                    "in_channels": 3,
-                    "classes": 1
-                },
-                "backend": "pytorch",
+        if "Seg_YOLO26n-seg-v1_crack-seg" not in MODEL_REGISTRY:
+            MODEL_REGISTRY["Seg_YOLO26n-seg-v1_crack-seg"] = {
+                "backend": "onnx",
                 "url": None,
-                "local_path": "pytorch/smp/Seg_Unet-v1_CFD/Seg_Unet-v1_CFD.pt",
+                "local_path": "ultralytics/yolo/YOLO26n-seg_v6_baseline/weights/best.onnx",
                 "sha256": None,
-                "raw_config": {
-                    "producer": "Segmentation Models PyTorch (smp)",
-                    "architecture": {
-                        "arch": "Unet"
-                    }
-                }
+                "raw_config": {}
             }
 
     def test_list_models(self):
         models = list_models()
-        # This just checks model listing
         self.assertIsInstance(models, list)
         self.assertTrue(len(models) > 0)
-        # Demo print of all valid model paths for info/debug
         print_model_paths()
 
     def test_resolve_local_checkpoint(self):
         checkpoints_dir = get_checkpoints_dir()
         self.assertTrue(checkpoints_dir.is_dir(), f"Checkpoints dir {checkpoints_dir} does not exist.")
         
-        # Test resolution for Seg_Unet-v1_CrackTree260 (not in registry, but folder exists)
-        path = resolve_local_checkpoint("Seg_Unet-v1_CrackTree260", backend="pytorch")
-        self.assertIsNotNone(path, "Failed to resolve local checkpoint for Seg_Unet-v1_CrackTree260")
-        self.assertTrue(path.is_file())
-        self.assertTrue(path.name.endswith(".pth") or path.name.endswith(".pt"))
-
-        # Test resolution for Seg_Unet-v1_CFD
-        path_v1 = resolve_local_checkpoint("Seg_Unet-v1_CFD", backend="pytorch")
-        self.assertIsNotNone(path_v1, "Failed to resolve local checkpoint for Seg_Unet-v1_CFD")
-        self.assertTrue(path_v1.is_file())
-        self.assertEqual(path_v1.name, "Seg_Unet-v1_CFD.pt")
-
-        # Test resolution for Seg_YOLO26n-seg-v1_crack-seg
         path_yolo = resolve_local_checkpoint("Seg_YOLO26n-seg-v1_crack-seg", backend="onnx")
         self.assertIsNotNone(path_yolo, "Failed to resolve local checkpoint for Seg_YOLO26n-seg-v1_crack-seg")
         self.assertTrue(path_yolo.is_file())
-        self.assertEqual(path_yolo.name, "Seg_YOLO26n-seg-v1_crack-seg.onnx")
-
-    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
-    def test_load_model_local(self):
-        # Load local pytorch model
-        model = load_model("Seg_Unet-v1_CFD", device="cpu", local_checkpoint=True)
-        self.assertIsNotNone(model)
-        self.assertTrue(isinstance(model, torch.nn.Module))
-        self.assertFalse(model.training)
-
-    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
-    def test_pipeline_from_pretrained_local(self):
-        # Create pipeline using local model loading
-        pipeline = CrackInferencePipeline.from_pretrained(
-            "Seg_Unet-v1_CFD", 
-            device="cpu", 
-            local_checkpoint=True
-        )
-        self.assertIsNotNone(pipeline)
-        self.assertTrue(isinstance(pipeline.model, torch.nn.Module))
+        self.assertTrue(path_yolo.suffix.lower() == ".onnx")
 
     def test_load_model_nonexistent_local_fallback_error(self):
-        # A nonexistent variant should raise ValueError
         with self.assertRaises(ValueError):
             load_model("nonexistent_model_variant_abc", local_checkpoint=True)
 
-    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
-    def test_load_model_from_local_file_path(self):
-        import torch.nn as nn
-
-        class TinyModel(nn.Module):
-            def __init__(self, in_features=10, out_features=1):
-                super().__init__()
-                self.linear = nn.Linear(in_features, out_features)
-            def forward(self, x):
-                return self.linear(x)
-
-        model = TinyModel()
-        with tempfile.NamedTemporaryFile(suffix=".pth", delete=False) as tmp:
-            torch.save(model.state_dict(), tmp.name)
-            tmp_path = tmp.name
-        try:
-            loaded = load_model(
-                tmp_path,
-                device="cpu",
-                architecture=TinyModel,
-                kwargs={"in_features": 10, "out_features": 1},
-                backend="pytorch",
-            )
-            self.assertIsNotNone(loaded)
-            self.assertIsInstance(loaded, TinyModel)
-        finally:
-            os.unlink(tmp_path)
-
-    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
-    def test_load_model_from_local_path_nonexistent_raises(self):
-        import torch.nn as nn
-
-        class TinyModel(nn.Module):
-            def __init__(self, in_features=10, out_features=1):
-                super().__init__()
-                self.linear = nn.Linear(in_features, out_features)
-
-        with self.assertRaises(FileNotFoundError):
-            load_model(
-                "C:/nonexistent/absolute/path/model.pth",
-                device="cpu",
-                architecture=TinyModel,
-                backend="pytorch",
-            )
-
-    @unittest.skipIf(not HAS_TORCH, "PyTorch not available")
-    def test_load_model_from_local_path_requires_architecture(self):
-        with tempfile.NamedTemporaryFile(suffix=".pth", delete=False) as tmp:
+    def test_load_model_requires_onnx_backend(self):
+        with tempfile.NamedTemporaryFile(suffix=".onnx", delete=False) as tmp:
             tmp_path = tmp.name
         try:
             with self.assertRaises(ValueError):
-                load_model(tmp_path, device="cpu", backend="pytorch")
+                load_model("nonexistent_variant", device="cpu", backend="pytorch")
         finally:
             os.unlink(tmp_path)
 

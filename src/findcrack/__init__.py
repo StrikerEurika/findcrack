@@ -1,9 +1,9 @@
 from .inference import CrackInferencePipeline
-from .models import load_model, UNet, list_models, register_model, get_model_status_map
+from .models import load_model, list_models, register_model, get_model_status_map
 from .evaluation import calculate_metrics
 from .preprocess import apply_lab_clahe, get_inference_transform, Preprocessor, PatchExtractor, ImageScaler
 from .postprocess import PatchBlender
-from .backends import get_backend, PyTorchBackend, ONNXCPUBackend, ONNXCUDABackend
+from .backends import get_backend, ONNXCPUBackend, ONNXCUDABackend
 
 import importlib.metadata
 
@@ -15,7 +15,6 @@ except importlib.metadata.PackageNotFoundError:
 __all__ = [
     "CrackInferencePipeline",
     "load_model",
-    "UNet",
 
     "calculate_metrics",
     "apply_lab_clahe",
@@ -29,8 +28,6 @@ __all__ = [
     "get_model_status_map",
 
     "get_backend",
-    "PyTorchBackend",
     "ONNXCPUBackend",
     "ONNXCUDABackend",
 ]
-

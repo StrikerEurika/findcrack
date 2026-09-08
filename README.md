@@ -1,19 +1,19 @@
 # findcrack
 
-Deep learning crack detection package. Pixel-level segmentation on high-res images. Supports U-Net, DeepCrack, custom ONNX. Fast, robust, modular, minimal deps (ONNX mode).
+Deep learning crack detection package. Pixel-level segmentation on high-res images. Supports custom ONNX models. Fast, robust, modular, minimal deps.
 
 ---
 
 ## What
-Deep learning package. Pixel-level crack segmentation. Detects cracks in concrete images.
+Deep learning package. Pixel-level crack segmentation. Detects cracks in concrete images via ONNX Runtime.
 
 ## Why
-Standardize crack detection for research, industrial, civil. Fast. Loads models dynamically. PyTorch optional.
+Standardize crack detection for research, industrial, civil. Fast. Loads models dynamically. ONNX-only, no PyTorch required.
 
 ## Features
 - Pretrained model registry
 - Patch inference (sliding window)
-- Seamless ONNX/PyTorch backend
+- ONNX Runtime CPU/CUDA backend
 - Gaussian/average blend (no seams)
 - Test-time augmentation (robust mask)
 - Metrics: IoU, Dice, Precision, Recall, Pixel Accuracy
@@ -36,14 +36,16 @@ uv add findcrack
 
 Only ONNX, NumPy. No PyTorch.
 
-### Standard (PyTorch model/training):
+### GPU Support
 ```sh
-pip install "findcrack[standard]"
+pip install "findcrack[gpu]"
 ```
 or
 ```sh
-uv add findcrack --extra standard
+uv add findcrack --extra gpu
 ```
+
+Installs `onnxruntime-gpu` for CUDA acceleration.
 
 ### Virtual Env
 ```sh
@@ -77,16 +79,16 @@ result keys:
 
 Save e.g. `cv2.imwrite('out.png', results["overlay"])`
 
-#### Custom Model
+#### Custom ONNX Model
 ```python
-from findcrack import load_model, UNet
-model = load_model(variant="/path/to/.pth", architecture=UNet, device="cpu")
+from findcrack import load_model, ONNXModelWrapper
+model = load_model("/path/to/model.onnx", device="cpu")
 ```
 
 Register custom model:
 ```python
 from findcrack import register_model
-register_model(name, url, architecture=UNet, kwargs={...}, backend="pytorch")
+register_model(name, url, backend="onnx", sha256=None)
 ```
 
 List models:
@@ -108,7 +110,7 @@ print(list_models())
 ## Directory Structure
 - `demo/` - CLIs, mock, runner
 - `src/findcrack/`
-  - `models/` - U-Net, DeepCrack, ONNX, registry
+  - `models/` - ONNX wrapper, registry
   - `inference/` - pipeline, TTA
   - `evaluation/` - metrics
   - `preprocess/` - CLAHE, patch, transforms
@@ -119,7 +121,7 @@ print(list_models())
 ## API Entry
 From `__init__.py`:
 - `CrackInferencePipeline`
-- `load_model`, `UNet`
+- `load_model`, `ONNXModelWrapper`
 - `calculate_metrics`
 - `apply_lab_clahe`, `get_inference_transform`
 - `Preprocessor`, `PatchExtractor`, `ImageScaler`
@@ -153,19 +155,18 @@ Manual patch extraction, blending—see readme + src for more.
 ## Requirements
 - Python >=3.11
 - Core: albumentations, onnxruntime, opencv-python, pillow, numpy, matplotlib, scikit-image, scipy, pandas, seaborn, scikit-learn, tqdm, ipykernel
-- `standard`/`torch` extra: torch, torchaudio, torchvision, segmentation-models-pytorch
+- `gpu` extra: onnxruntime-gpu
 
 ---
 
 ## Dev Setup
 - install `uv`
-- `uv pip install -e .[standard]`
+- `uv pip install -e .[gpu]`
 
 ---
 
 ## Common Errors
 - Incorrect path: FileNotFoundError
-- No PyTorch (for `.pth`): must install with `[standard]`
 - CUDA/MPS unavailable: use `device="cpu"`
 - Image must be RGB, high-res
 - Out of memory: lower patch_size
