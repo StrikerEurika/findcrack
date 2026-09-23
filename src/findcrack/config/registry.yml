@@ -1,8 +1,7 @@
 registry_version: "1.0.2"
-active_models: ["Seg_YOLO26n-seg-v1_crack-seg", "Seg_YOLO26n-seg-v3_crack-seg", "UNET_v4_Baseline", "SegFormer_v1_MiT_B0", "UNET_v4.5_EfficientNetB0"]
+active_models: ["SegFormer_v1_MiT_B0", "UNET_v4.5_EfficientNetB0"]
 
 models:
-
     SegFormer_v1_MiT_B0:
         name: "SegFormer v1 MiT-B0"
         version: "1.0.0"
@@ -34,7 +33,7 @@ models:
             datasets: ["crack-dataset"]
             dataset_transparency: "public"
             dataset_url: null
-            
+
         artifacts:
             framework: "transformers"
             format: ["onnx"]
@@ -78,120 +77,3 @@ models:
             format: ["onnx"]
             model_url: https://github.com/StrikerEurika/findcrack/releases/download/models/UNET_v4.5_Efficientnet_B0.onnx
             local_path: "./checkpoints/releases/UNET_v4.5_Efficientnet_B0.onnx"
-
-    UNET_v4_Baseline:
-        name: "UNET v4 Baseline"
-        version: "1.0.0"
-        description: "UNET v4 for crack segmentation trained on crack-dataset dataset"
-        producer: "Segmentation Models Pytorch (smp)"
-
-        task:
-            specialist: segmentation
-            category: semantic_segmentation
-
-        architecture:
-            library: "smp"
-            arch: "UNET"
-            encoder: null
-            encoder_weights: null
-            in_channels: 3
-            classes: 1
-
-        input:
-            training_shape: [3, 512, 512]
-            inference_patch_sizes: [256, 512, 1024]
-            dtype: "float32"
-            preprocessing:
-                normalize:
-                    mean: [0.485, 0.456, 0.406]
-                    std: [0.229, 0.224, 0.225]
-
-        training:
-            datasets: ["crack-dataset"]
-            dataset_transparency: "public"
-            dataset_url: null
-            loss_functions: ["BCEWithLogitsLoss", "FocalLoss"]
-
-        artifacts:
-            framework: "smp"
-            format: ["onnx"]
-            model_url: null
-            local_path: "./checkpoints/pytorch/smp/UNET_mobilenet_v4_Baseline/weights/best_logits.onnx"
-
-    Seg_YOLO26n-seg-v3_crack-seg:
-        name: "YOLO26n-seg-v3 (crack-seg)"
-        version: "1.0.0"
-        description: "YOLO26n-seg for crack segmentation trained on crack-seg dataset"
-        producer: "Ultralytics YOLOv26"
-
-        task:
-            specialist: segmentation
-            category: instance_segmentation
-
-        architecture:
-            library: "ultralytics"
-            arch: "YOLO26n-seg"
-            encoder: null
-            encoder_weights: null
-            in_channels: 3
-            classes: 1
-
-        input:
-            training_shape: [3, 512, 512]
-            inference_patch_sizes: [256, 512, 1024]
-            dtype: "float32"
-            preprocessing:
-                normalize:
-                    mean: [0.485, 0.456, 0.406]
-                    std: [0.229, 0.224, 0.225]
-
-        training:
-            datasets: ["crack-seg"]
-            dataset_transparency: "public"
-            dataset_url: null
-            loss_functions: ["YOLOLoss"]
-
-        artifacts:
-            framework: "ultralytics"
-            format: ["onnx"]
-            model_url: "https://github.com/StrikerEurika/findcrack/releases/download/models/Seg_YOLO26n-seg-v3_crack-seg.onnx"
-            local_path: "./checkpoints/ultralytics/yolo/Seg_YOLO26n-seg-v3_crack-seg/weights/best.onnx"
-
-    Seg_YOLO26n-seg-v1_crack-seg:
-        name: "YOLO26n-seg-v1 (crack-seg)"
-        version: "1.0.0"
-        description: "YOLO26n-seg for crack segmentation trained on crack-seg dataset"
-        producer: "Ultralytics YOLOv26"
-
-        task:
-            specialist: segmentation
-            category: instance_segmentation
-
-        architecture:
-            library: "ultralytics"
-            arch: "YOLO26n-seg"
-            encoder: null
-            encoder_weights: null
-            in_channels: 3
-            classes: 1
-
-        input:
-            training_shape: [3, 416, 416]
-            inference_patch_sizes: [256, 512, 1024]
-            dtype: "float32"
-            preprocessing:
-                normalize:
-                    mean: [0.485, 0.456, 0.406]
-                    std: [0.229, 0.224, 0.225]
-
-        training:
-            datasets: ["crack-seg"]
-            dataset_transparency: "public"
-            dataset_url: null
-            loss_functions: ["YOLOLoss"]
-
-        artifacts:
-            framework: "ultralytics"
-            format: ["onnx"]
-            model_url: "https://github.com/StrikerEurika/findcrack/releases/download/models/Det_YOLOv26n-seg_crack-dataset_v1_best.onnx"
-            local_path: "./checkpoints/ultralytics/yolo/Seg_YOLO26n-seg-v1_crack-seg/Seg_YOLO26n-seg-v1_crack-seg.onnx"
