@@ -42,12 +42,21 @@ def _register_cuda_dll_dirs():
 def _require_ort():
     try:
         import onnxruntime as ort
+
+        # Load CUDA/cuDNN libraries from NVIDIA Python packages.
+        if hasattr(ort, "preload_dlls"):
+            ort.preload_dlls(
+                directory=None,
+                cuda=True,
+                cudnn=True,
+            )
+
         return ort
-    except ImportError as e:
+    except ImportError as error:
         raise ImportError(
             "onnxruntime is required for ONNX inference. "
-            "Install it with: uv add onnxruntime or uv add onnxruntime-gpu"
-        ) from e
+            "Install it with: uv add onnxruntime-gpu"
+        ) from error
 
 
 class ONNXCUDABackend:
